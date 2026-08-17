@@ -4,7 +4,6 @@ import LoginPage from '@/pages/LoginPage'
 import AthletesPage from '@/pages/AthletesPage'
 import EventsPage from '@/pages/EventsPage'
 
-import { LandingPage } from "@/pages/LandingPage";
 
 /**
  * App — Root application component.
@@ -23,7 +22,7 @@ function App() {
         <Route path="/events" element={<EventsPage />} />
       </Routes>
 
-      <LandingPage />
+      
     </BrowserRouter>
     
   )
