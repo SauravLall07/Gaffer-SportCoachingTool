@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Menu, X, Sun, Moon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { SportLogo } from "@/components/brand/SportLogo";
 import { useTheme } from "@/hooks/useTheme";
 import { brand } from "@/data/brand";
@@ -108,6 +108,7 @@ export function Navbar() {
           <Button
             variant="ghost"
             size="icon-sm"
+            type="button"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           >
@@ -119,13 +120,15 @@ export function Navbar() {
           </Button>
 
           <a
-            href="#login"
+            href="/login"
             className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Log In
           </a>
 
-          <Button render={<a href="#get-started" />}>Get Started</Button>
+          <a href="/login" className={buttonVariants()}>
+            Get Started
+          </a>
         </div>
 
         {/* ── Mobile hamburger + theme toggle ──────────────────────────── */}
@@ -133,6 +136,7 @@ export function Navbar() {
           <Button
             variant="ghost"
             size="icon-sm"
+            type="button"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           >
@@ -146,6 +150,7 @@ export function Navbar() {
           <Button
             variant="ghost"
             size="icon-sm"
+            type="button"
             onClick={toggleMobile}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
@@ -190,15 +195,19 @@ export function Navbar() {
           {/* Action buttons */}
           <div className="flex flex-col gap-2">
             <a
-              href="#login"
+              href="/login"
               className="block rounded-md px-3 py-2.5 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               onClick={() => setMobileOpen(false)}
             >
               Log In
             </a>
-            <Button render={<a href="#get-started" />} className="w-full">
+            <a
+              href="/login"
+              className={cn(buttonVariants(), "w-full")}
+              onClick={() => setMobileOpen(false)}
+            >
               Get Started
-            </Button>
+            </a>
           </div>
         </div>
       </div>

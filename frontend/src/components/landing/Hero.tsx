@@ -1,7 +1,8 @@
 import { ArrowRight, LogIn } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { DashboardMockup } from "@/components/landing/DashboardMockup";
 import { brand } from "@/data/brand";
+import { cn } from "@/lib/utils";
 
 /**
  * Hero — The primary marketing section at the top of the landing page.
@@ -57,24 +58,27 @@ export function Hero() {
 
             {/* CTA buttons */}
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start animate-fade-in-up animation-delay-300">
-              <Button
-                render={<a href="#get-started" />}
-                size="lg"
-                className="w-full gap-2 bg-brand text-white font-semibold hover:bg-brand-dark shadow-lg shadow-brand/25 sm:w-auto"
+              <a
+                href="/login"
+                className={cn(
+                  buttonVariants({ size: "lg" }),
+                  "w-full gap-2 bg-brand text-white font-semibold hover:bg-brand-dark shadow-lg shadow-brand/25 sm:w-auto",
+                )}
               >
                 Get Started
                 <ArrowRight className="size-4" />
-              </Button>
+              </a>
 
-              <Button
-                render={<a href="#login" />}
-                variant="outline"
-                size="lg"
-                className="w-full gap-2 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white sm:w-auto"
+              <a
+                href="/login"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "w-full gap-2 border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white sm:w-auto",
+                )}
               >
                 <LogIn className="size-4" />
                 Log In
-              </Button>
+              </a>
             </div>
 
             {/* Trust signal */}
