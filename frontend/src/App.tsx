@@ -1,3 +1,9 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import DashboardPage from '@/pages/DashboardPage'
+import LoginPage from '@/pages/LoginPage'
+import AthletesPage from '@/pages/AthletesPage'
+import EventsPage from '@/pages/EventsPage'
+
 import { LandingPage } from "@/pages/LandingPage";
 
 /**
@@ -8,7 +14,20 @@ import { LandingPage } from "@/pages/LandingPage";
  * router will be introduced here to handle multiple routes.
  */
 function App() {
-  return <LandingPage />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/athletes" element={<AthletesPage />} />
+        <Route path="/events" element={<EventsPage />} />
+      </Routes>
+
+      <LandingPage />
+    </BrowserRouter>
+    
+  )
+  
 }
 
 export default App;
