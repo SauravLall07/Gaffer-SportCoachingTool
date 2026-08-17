@@ -11,7 +11,7 @@ import { Hero } from "@/components/landing/Hero";
  * Future phases will append additional sections below the Hero (features,
  * how-it-works, statistics, calendar, final CTA, footer, etc.).
  */
-export function LandingPage() {
+export default function LandingPage() {
   return (
     <>
       <Navbar />

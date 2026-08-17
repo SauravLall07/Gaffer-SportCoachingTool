@@ -3,6 +3,7 @@ import DashboardPage from '@/pages/DashboardPage'
 import LoginPage from '@/pages/LoginPage'
 import AthletesPage from '@/pages/AthletesPage'
 import EventsPage from '@/pages/EventsPage'
+import LandingPage from '@/pages/LandingPage'
 
 
 /**
@@ -16,6 +17,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />  
         <Route path="/" element={<DashboardPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/athletes" element={<AthletesPage />} />
