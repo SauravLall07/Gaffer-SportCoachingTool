@@ -68,7 +68,7 @@ export function SportLogo({ size = 32, className }: SportLogoProps) {
       {/* ── Forward / play chevron ────────────────────────────────────── */}
       <polyline
         points="28,16 33,20 28,24"
-        stroke="var(--brand, #8B1E2D)"
+        stroke="var(--brand, #00D99A)"
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"

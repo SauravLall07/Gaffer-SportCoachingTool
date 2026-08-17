@@ -27,7 +27,7 @@ const NAV_LINKS = [
  * - Theme toggle (light ↔ dark) via the `useTheme` hook.
  * - Accessible keyboard navigation and ARIA attributes.
  *
- * The "Get Started" CTA uses the brand deep-red primary colour.
+ * The "Get Started" CTA uses the brand emerald primary colour.
  */
 export function Navbar() {
   const { theme, toggleTheme } = useTheme();

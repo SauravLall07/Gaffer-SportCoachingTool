@@ -20,38 +20,48 @@ export const brand = {
 /**
  * Colour tokens that map to the brand palette defined in the spec.
  *
- * These hex values are converted to oklch() inside `index.css` so Tailwind and
- * shadcn/ui components can consume them as CSS custom properties.  Keep this
- * object as the single source of truth for brand colours.
+ * These hex values are mirrored in `index.css` as CSS custom properties so
+ * Tailwind and shadcn/ui components can consume them.  Keep this object as
+ * the single source of truth for brand colours.
  */
 export const brandColors = {
-  /** Primary deep red — CTA buttons, logo accent, active states. */
-  primaryRed: "#8B1E2D",
-  /** Darker red — hover / pressed states for primary red. */
-  darkRed: "#681522",
-  /** Lighter red — highlights and secondary emphasis. */
-  lightRed: "#B83246",
+  /* ── Primary accent — emerald / teal ─────────────────────────────────── */
+  /** Primary emerald — CTA buttons, logo accent, active states. */
+  primary: "#00D99A",
+  /** Darker emerald — hover / pressed states. */
+  primaryDark: "#00CFA0",
+  /** Lighter emerald — highlights and secondary emphasis. */
+  primaryLight: "#20E6A6",
 
-  /** Near-black used for dark-mode backgrounds. */
-  darkBackground: "#111111",
-  /** Slightly lifted surface for dark-mode cards / navbar. */
-  darkSurface: "#181818",
+  /* ── Dark-mode surfaces ──────────────────────────────────────────────── */
+  /** Near-black background with blue-gray undertone. */
+  darkBackground: "#0B1218",
+  /** Dark blue-gray surface for cards / panels. */
+  darkSurface: "#17212B",
+  /** Elevated dark surface for nested elements. */
+  darkSurfaceElevated: "#1A2530",
+  /** Subtle border colour in dark mode. */
+  darkBorder: "#233747",
 
+  /* ── Light-mode surfaces ─────────────────────────────────────────────── */
   /** Warm off-white used for light-mode backgrounds. */
   lightBackground: "#F5F3F0",
   /** Pure white surface for light-mode cards. */
   lightSurface: "#FFFFFF",
+  /** Subtle border colour in light mode. */
+  lightBorder: "#D9D6D2",
 
+  /* ── Typography ──────────────────────────────────────────────────────── */
   /** Primary text colour in light mode. */
   darkText: "#171717",
   /** Primary text colour in dark mode. */
-  lightText: "#F5F5F5",
+  lightText: "#E8ECEF",
+  /** Secondary / muted text. */
+  mutedText: "#8E9BA8",
 
-  /** Secondary / muted text for both themes. */
-  mutedText: "#737373",
-
-  /** Subtle border colour in light mode. */
-  lightBorder: "#D9D6D2",
-  /** Subtle border colour in dark mode. */
-  darkBorder: "#2A2A2A",
+  /* ── Semantic status colours ─────────────────────────────────────────── */
+  /** Warning / draw / neutral — amber. */
+  warning: "#FFBE2E",
+  /** Danger / error / loss — red (reserved for negative states only). */
+  danger: "#FF5B5F",
 } as const;

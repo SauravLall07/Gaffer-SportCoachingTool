@@ -25,7 +25,7 @@ export function Hero() {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="relative isolate overflow-hidden bg-[#111111]"
+      className="relative isolate overflow-hidden bg-[#0B1218]"
     >
       {/* ── Atmospheric background layer ──────────────────────────────── */}
       <HeroBackground />
@@ -62,7 +62,7 @@ export function Hero() {
                 href="/login"
                 className={cn(
                   buttonVariants({ size: "lg" }),
-                  "w-full gap-2 bg-brand text-white font-semibold hover:bg-brand-dark shadow-lg shadow-brand/25 sm:w-auto",
+                  "w-full gap-2 bg-brand text-brand-foreground font-semibold hover:bg-brand-light shadow-lg shadow-brand/20 sm:w-auto",
                 )}
               >
                 Get Started
@@ -117,14 +117,14 @@ export function Hero() {
 function HeroBackground() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-      {/* Base gradient — dark with a warm red undertone */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#111111] via-[#140a0d] to-[#111111]" />
+      {/* Base gradient — dark with a subtle cool blue-teal undertone */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0B1218] via-[#0A1419] to-[#0B1218]" />
 
       {/* Floodlight glow — top centre */}
       <div className="absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/6 blur-[120px]" />
 
       {/* Subtle vignette */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,#111111_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,#0B1218_100%)]" />
 
       {/* Pitch markings — centre circle */}
       <svg
