@@ -133,17 +133,18 @@ export default function SignUpPage() {
         aria-hidden="true"
         draggable={false}
         className="animate-fade-in pointer-events-none absolute inset-0 h-full w-full object-cover object-center select-none lg:object-right"
-      />
+    />
 
-      {/* ── Readability overlays ────────────────────────────────────────── */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background via-background/60 to-transparent"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-background/15"
-      />
+    {/* ── Readability overlays ────────────────────────────────────────── */}
+    <div
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/75 via-background/35 to-transparent"
+    />
+
+    <div
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-0 bg-background/5"
+    />
 
       {/* ── Signup card ─────────────────────────────────────────────────── */}
       <div className="relative z-10 mx-auto w-full max-w-md px-4 py-8 sm:ml-[8%] md:ml-[12%] lg:ml-[15%]">
