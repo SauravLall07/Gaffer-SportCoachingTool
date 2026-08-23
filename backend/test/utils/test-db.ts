@@ -39,3 +39,14 @@ export async function cleanupUser({
   await testDb.delete(user).where(eq(user.email, email));
   await testDb.delete(teams).where(eq(teams.name, teamName));
 }
+
+/**
+ * Marks a test user's email as verified directly in the database, standing
+ * in for "click the link in the verification email" — sign-up sends that via
+ * Brevo (or just logs it, see `src/email/email.ts`) and there is no inbox
+ * for these tests to read it from. `requireEmailVerification` on the Better
+ * Auth config (`src/auth/auth.ts`) withholds a session until this flips.
+ */
+export async function verifyUserEmail(email: string): Promise<void> {
+  await testDb.update(user).set({ emailVerified: true }).where(eq(user.email, email));
+}

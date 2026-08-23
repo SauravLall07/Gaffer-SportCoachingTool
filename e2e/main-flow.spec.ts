@@ -1,14 +1,26 @@
 import { expect, test } from '@playwright/test';
-import { cleanupUser, uniqueTestIdentity } from '../backend/test/utils/test-db';
+import {
+  cleanupUser,
+  uniqueTestIdentity,
+  verifyUserEmail,
+} from '../backend/test/utils/test-db';
 
 const PASSWORD = 'password123';
 
 /**
- * Full main flow: Register → Dashboard → Roster (create an athlete) →
- * Events → back to Dashboard (now reflecting the new athlete). Backend CRUD
- * depth for athletes/events/dashboard is covered by the Supertest suites in
- * `backend/test/`; this proves the same operations work through the real
- * browser and real UI, end to end.
+ * Full main flow: Register → verify email → Sign in → add a team → Roster
+ * (create an athlete) → Events → back to Dashboard (now reflecting the new
+ * athlete). Backend CRUD depth for auth/teams/athletes/events/dashboard is
+ * covered by the Supertest suites in `backend/test/`; this proves the same
+ * operations work through the real browser and real UI, end to end.
+ *
+ * Sign-up no longer signs the coach in or hands them a team by itself —
+ * `requireEmailVerification` withholds the session until the address is
+ * confirmed (`auth.ts`), and team creation moved out into its own step the
+ * dashboard's "Add Team" flow drives (`AddTeamModal`). There's no inbox
+ * here to read the real verification email from, so `verifyUserEmail`
+ * flips it straight in the database — standing in for "click the link" —
+ * the same shortcut the backend integration suites use.
  *
  * Event creation itself isn't driven here — `EventFormDialog` uses a custom
  * calendar/time-column picker (no plain date/time inputs), which would make
@@ -16,7 +28,7 @@ const PASSWORD = 'password123';
  * backend's `events.e2e-spec.ts`. This still visits `/events` and checks it
  * renders correctly for a signed-in coach.
  */
-test('coach can register, add an athlete, and see it reflected on the roster and dashboard', async ({
+test('coach can register, verify, create a team, add an athlete, and see it reflected on the roster and dashboard', async ({
   page,
 }) => {
   const { email, teamName } = uniqueTestIdentity('s1-07-e2e');
@@ -33,19 +45,34 @@ test('coach can register, add an athlete, and see it reflected on the roster and
       await page
         .getByLabel('Confirm password', { exact: true })
         .fill(PASSWORD);
-      await page.getByLabel('Team / Squad name').fill(teamName);
       await page.getByRole('checkbox').check();
       await page.getByRole('button', { name: /join the dugout/i }).click();
+
+      // `requireEmailVerification` means sign-up no longer signs the coach
+      // straight in — it lands on the "check your email" screen instead.
+      await expect(page).toHaveURL(/\/verify-email$/);
+      await expect(
+        page.getByRole('heading', { name: 'Check your email' }),
+      ).toBeVisible();
+    });
+
+    await test.step('verify the email and sign in', async () => {
+      await verifyUserEmail(email);
+
+      await page.goto('/login');
+      await page.getByLabel('Email address').fill(email);
+      await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+      await page.getByRole('button', { name: /sign in to dugout/i }).click();
 
       await expect(page).toHaveURL(/\/dashboard$/);
     });
 
-    await test.step('dashboard shows the account, team, and zeroed-out counts for a brand-new team', async () => {
+    await test.step('dashboard shows the account and zeroed-out counts for a coach with no team yet', async () => {
       await expect(
         page.getByRole('heading', { name: 'Dashboard' }),
       ).toBeVisible();
       await expect(
-        page.getByText(`Welcome back, ${name} · ${teamName}`),
+        page.getByText(`Welcome back, ${name}`, { exact: true }),
       ).toBeVisible();
       await expect(
         page.getByRole('region', { name: 'Active athletes count' }),
@@ -55,6 +82,19 @@ test('coach can register, add an athlete, and see it reflected on the roster and
       // empty states rather than error out.
       await expect(page.getByText('No Active Match')).toBeVisible();
       await expect(page.getByText('No season data available')).toBeVisible();
+    });
+
+    await test.step('creates a team from the dashboard', async () => {
+      await page.getByRole('button', { name: 'Add Team' }).click();
+
+      const dialog = page.getByRole('dialog', { name: 'Add your team' });
+      await dialog.getByLabel('Team name').fill(teamName);
+      await dialog.getByRole('button', { name: 'Create Team' }).click();
+
+      await expect(dialog).toBeHidden();
+      await expect(
+        page.getByText(`Welcome back, ${name} · ${teamName}`),
+      ).toBeVisible();
     });
 
     await test.step('add an athlete from the roster page', async () => {

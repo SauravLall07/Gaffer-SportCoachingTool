@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
+import { registerCoach } from './utils/auth-helpers';
 import {
   cleanupUser,
   uniqueTestIdentity,
@@ -14,12 +15,12 @@ interface AuthResponseBody {
   team: { id: string; name: string; role: string } | null;
 }
 
-// Sprint 1 has no athletes/events modules yet, so there's nothing scoped to
-// `teamId` to test isolation against directly. This suite instead proves the
-// boundary that does exist today: sign-up assigns each coach their own team,
-// `GET /auth/session` never leaks another user's team, and a user can't be
-// attached to a second team. Per-resource isolation (athletes/events scoped
-// by `teamId`) needs its own coverage once those modules land.
+// Per-resource isolation (athletes/events/dashboard scoped by `teamId`) has
+// its own coverage in those modules' suites. This one proves the boundary
+// underneath all of them: each coach who has completed registration
+// (sign-up → verify → sign-in → create a team, via `registerCoach`) gets
+// their own distinct team, and `GET /auth/session` never leaks another
+// user's.
 describe('Team isolation (e2e)', () => {
   let app: INestApplication<App>;
   const identities: TestIdentity[] = [];
@@ -48,58 +49,30 @@ describe('Team isolation (e2e)', () => {
     const userA = newIdentity();
     const userB = newIdentity();
 
-    const [responseA, responseB] = await Promise.all([
-      request(app.getHttpServer())
-        .post('/auth/sign-up')
-        .send({
-          name: 'Coach A',
-          email: userA.email,
-          password: 'password123',
-          teamName: userA.teamName,
-        })
-        .expect(201),
-      request(app.getHttpServer())
-        .post('/auth/sign-up')
-        .send({
-          name: 'Coach B',
-          email: userB.email,
-          password: 'password123',
-          teamName: userB.teamName,
-        })
-        .expect(201),
+    const [resultA, resultB] = await Promise.all([
+      registerCoach(app.getHttpServer(), userA, 'Coach A'),
+      registerCoach(app.getHttpServer(), userB, 'Coach B'),
     ]);
-    const bodyA = responseA.body as AuthResponseBody;
-    const bodyB = responseB.body as AuthResponseBody;
 
-    expect(bodyA.team?.id).not.toEqual(bodyB.team?.id);
-    expect(bodyA.team?.name).toEqual(userA.teamName);
-    expect(bodyB.team?.name).toEqual(userB.teamName);
+    expect(resultA.team.id).not.toEqual(resultB.team.id);
+    expect(resultA.team.name).toEqual(userA.teamName);
+    expect(resultB.team.name).toEqual(userB.teamName);
   });
 
   it("never returns another user's team from /auth/session", async () => {
     const userA = newIdentity();
     const userB = newIdentity();
-    const agentA = request.agent(app.getHttpServer());
-    const agentB = request.agent(app.getHttpServer());
 
-    await agentA
-      .post('/auth/sign-up')
-      .send({
-        name: 'Coach A',
-        email: userA.email,
-        password: 'password123',
-        teamName: userA.teamName,
-      })
-      .expect(201);
-    await agentB
-      .post('/auth/sign-up')
-      .send({
-        name: 'Coach B',
-        email: userB.email,
-        password: 'password123',
-        teamName: userB.teamName,
-      })
-      .expect(201);
+    const { agent: agentA } = await registerCoach(
+      app.getHttpServer(),
+      userA,
+      'Coach A',
+    );
+    const { agent: agentB } = await registerCoach(
+      app.getHttpServer(),
+      userB,
+      'Coach B',
+    );
 
     const sessionA = await agentA.get('/auth/session').expect(200);
     const sessionB = await agentB.get('/auth/session').expect(200);
