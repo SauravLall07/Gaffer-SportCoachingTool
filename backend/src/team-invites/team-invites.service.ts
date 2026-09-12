@@ -8,7 +8,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 import { sendAssistantInviteEmail } from '../email/email';
-import { teamInvites, teams } from '../database/schema';
+import { teamInvites, teamMembers, teams, user } from '../database/schema';
 import { TeamsService } from '../teams/teams.service';
 import { teamInviteTokenSchema } from './team-invites.schemas';
 
@@ -27,6 +27,13 @@ export interface TeamInviteSummary {
   email: string;
   createdAt: Date;
   expiresAt: Date;
+}
+
+export interface TeamAssistantSummary {
+  id: string;
+  name: string;
+  email: string;
+  joinedAt: Date;
 }
 
 // Only sha256(token) is ever persisted, mirroring a password-reset token —
@@ -108,6 +115,26 @@ export class TeamInvitesService {
       email,
       expiresAt,
     };
+  }
+
+  /** Lists accepted assistant members for the coach's roster management card. */
+  async listAssistants(teamId: string): Promise<TeamAssistantSummary[]> {
+    return this.databaseService.database
+      .select({
+        id: teamMembers.id,
+        name: user.name,
+        email: user.email,
+        joinedAt: teamMembers.createdAt,
+      })
+      .from(teamMembers)
+      .innerJoin(user, eq(teamMembers.userId, user.id))
+      .where(
+        and(
+          eq(teamMembers.teamId, teamId),
+          eq(teamMembers.role, 'assistant'),
+        ),
+      )
+      .orderBy(desc(teamMembers.createdAt));
   }
 
   /** Lists the team's pending invites, newest first, for the coach's management card. */

@@ -33,6 +33,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import {
   createTeamInvite,
+  getTeamAssistants,
   getTeamInvites,
   revokeTeamInvite,
   type TeamInviteResult,
@@ -41,6 +42,7 @@ import {
 const QUERY_KEY_ACTIVE = ["athletes", "active"] as const;
 const QUERY_KEY_ARCHIVED = ["athletes", "archived"] as const;
 const QUERY_KEY_TEAM_INVITES = ["team-invites"] as const;
+const QUERY_KEY_TEAM_ASSISTANTS = ["team-assistants"] as const;
 
 /**
  * AthletesPage — Squad roster command centre (S1-03).
@@ -188,6 +190,12 @@ export default function AthletesPage() {
   const invitesQuery = useQuery({
     queryKey: QUERY_KEY_TEAM_INVITES,
     queryFn: getTeamInvites,
+    enabled: canManageRoster,
+  });
+
+  const assistantsQuery = useQuery({
+    queryKey: QUERY_KEY_TEAM_ASSISTANTS,
+    queryFn: getTeamAssistants,
     enabled: canManageRoster,
   });
 
@@ -459,50 +467,114 @@ export default function AthletesPage() {
               </Button>
             </div>
 
-            {invitesQuery.isLoading ? (
-              <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Loading invites…
+            <div className="space-y-6">
+              <div>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-foreground">
+                  Accepted Assistants
+                </h3>
+
+                {assistantsQuery.isLoading ? (
+                  <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading assistants…
+                  </div>
+                ) : assistantsQuery.error ? (
+                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                    <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                    <span>
+                      {assistantsQuery.error instanceof ApiError
+                        ? assistantsQuery.error.message
+                        : "Failed to load assistants."}
+                    </span>
+                  </div>
+                ) : (assistantsQuery.data ?? []).length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                    No assistants have joined the team yet.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {assistantsQuery.data!.map((assistant) => (
+                      <li
+                        key={assistant.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {assistant.name}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {assistant.email}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                          Active
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            ) : (invitesQuery.data ?? []).length === 0 ? (
-              <p className="py-4 text-center text-xs text-muted-foreground">
-                No pending assistant invites.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {invitesQuery.data!.map((inv) => (
-                  <li
-                    key={inv.id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {inv.email}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Expires{" "}
-                        {new Date(inv.expiresAt).toLocaleDateString(undefined, {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => revokeTeamInviteMutation.mutate(inv.id)}
-                      disabled={revokeTeamInviteMutation.isPending}
-                      className="gap-1 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                      Revoke
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
+
+              <div>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-foreground">
+                  Pending Invitations
+                </h3>
+
+                {invitesQuery.isLoading ? (
+                  <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading invites…
+                  </div>
+                ) : invitesQuery.error ? (
+                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                    <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                    <span>
+                      {invitesQuery.error instanceof ApiError
+                        ? invitesQuery.error.message
+                        : "Failed to load pending invites."}
+                    </span>
+                  </div>
+                ) : (invitesQuery.data ?? []).length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                    No pending assistant invites.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {invitesQuery.data!.map((inv) => (
+                      <li
+                        key={inv.id}
+                        className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {inv.email}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Expires{" "}
+                            {new Date(inv.expiresAt).toLocaleDateString(undefined, {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => revokeTeamInviteMutation.mutate(inv.id)}
+                          disabled={revokeTeamInviteMutation.isPending}
+                          className="gap-1 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="size-3.5" />
+                          Revoke
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </section>
         )}
       </div>
