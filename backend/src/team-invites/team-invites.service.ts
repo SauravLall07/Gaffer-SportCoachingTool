@@ -7,6 +7,7 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
+import { sendAssistantInviteEmail } from '../email/email';
 import { teamInvites, teams } from '../database/schema';
 import { TeamsService } from '../teams/teams.service';
 import { teamInviteTokenSchema } from './team-invites.schemas';
@@ -44,9 +45,9 @@ function isUsableInvite(invite: { status: string; expiresAt: Date }): boolean {
 
 /**
  * Assistant-invite lifecycle, mirroring ClaimsService: a coach generates a
- * one-time link bound to an email address; the invited person signs in (or
- * signs up) with a matching email and accepts to join the team with the
- * role hardcoded to `assistant`.
+ * one-time link bound to an email address, the backend emails that link to
+ * the invited person, and they sign in (or sign up) with the matching email
+ * to join the team with the role hardcoded to `assistant`.
  */
 @Injectable()
 export class TeamInvitesService {
@@ -58,8 +59,8 @@ export class TeamInvitesService {
   /**
    * Generates a one-time assistant invite for the given email, revoking any
    * pending invite for the same (team, email) pair first so at most one is
-   * active at a time. The raw token appears only in this method's response —
-   * it is never stored.
+   * active at a time. The raw token is never stored; it is placed in the
+   * emailed join URL.
    */
   async createInvite(
     teamId: string,
@@ -76,17 +77,34 @@ export class TeamInvitesService {
 
     await this.revokePendingInvites(teamId, email);
 
+    const inviteUrl = `${FRONTEND_URL}/join-team/${token}`;
+    const tokenHash = hashToken(token);
+
     await this.databaseService.database.insert(teamInvites).values({
       teamId,
       email,
-      tokenHash: hashToken(token),
+      tokenHash,
       createdByUserId,
       expiresAt,
     });
 
+    try {
+      await sendAssistantInviteEmail({
+        to: email,
+        url: inviteUrl,
+      });
+    } catch (error) {
+      // Do not leave a pending invite behind when email delivery fails.
+      await this.databaseService.database
+        .update(teamInvites)
+        .set({ status: 'revoked', updatedAt: new Date() })
+        .where(eq(teamInvites.tokenHash, tokenHash));
+      throw error;
+    }
+
     return {
       token,
-      inviteUrl: `${FRONTEND_URL}/join-team/${token}`,
+      inviteUrl,
       email,
       expiresAt,
     };
