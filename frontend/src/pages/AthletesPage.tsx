@@ -64,11 +64,12 @@ export default function AthletesPage() {
   const [archivingAthlete, setArchivingAthlete] = useState<Athlete | null>(null);
 
   // Claim-invite dialog state
-  const [claimInvite, setClaimInvite] = useState<{
+  const [claimInviteTarget, setClaimInviteTarget] = useState<{
     athleteName: string;
     athleteId: string;
-    result: ClaimInviteResult;
   } | null>(null);
+  const [claimInviteResult, setClaimInviteResult] =
+    useState<ClaimInviteResult | null>(null);
 
   // Assistant-invite dialog state
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
@@ -167,12 +168,8 @@ export default function AthletesPage() {
 
   const claimInviteMutation = useMutation({
     mutationFn: createClaimInvite,
-    onSuccess: (result, athleteId) => {
-      const backend = activeQuery.data?.find((a) => a.id === athleteId);
-      const name = backend
-        ? `${backend.firstName} ${backend.lastName}`
-        : "Athlete";
-      setClaimInvite({ athleteName: name, athleteId, result });
+    onSuccess: (result) => {
+      setClaimInviteResult(result);
       // Refresh roster to show "Invited" status
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY_ACTIVE });
     },
@@ -181,7 +178,8 @@ export default function AthletesPage() {
   const revokeInviteMutation = useMutation({
     mutationFn: (athleteId: string) => revokeClaimInvite(athleteId),
     onSuccess: () => {
-      setClaimInvite(null);
+      setClaimInviteTarget(null);
+      setClaimInviteResult(null);
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY_ACTIVE });
     },
   });
@@ -271,11 +269,19 @@ export default function AthletesPage() {
   };
 
   const handleInviteClaim = (athlete: Athlete) => {
-    claimInviteMutation.mutate(athlete.id);
+    setClaimInviteTarget({
+      athleteName: athlete.name,
+      athleteId: athlete.id,
+    });
+    setClaimInviteResult(null);
+    claimInviteMutation.reset();
+    revokeInviteMutation.reset();
   };
 
   const handleCloseClaimDialog = () => {
-    setClaimInvite(null);
+    setClaimInviteTarget(null);
+    setClaimInviteResult(null);
+    claimInviteMutation.reset();
     revokeInviteMutation.reset();
   };
 
@@ -516,12 +522,27 @@ export default function AthletesPage() {
       />
 
       <ClaimInviteDialog
-        isOpen={claimInvite !== null}
+        isOpen={claimInviteTarget !== null}
         onClose={handleCloseClaimDialog}
-        claimUrl={claimInvite?.result.claimUrl ?? ""}
-        athleteName={claimInvite?.athleteName ?? ""}
+        athleteName={claimInviteTarget?.athleteName ?? ""}
+        onInvite={(email) => {
+          if (!claimInviteTarget) return;
+          claimInviteMutation.mutate({
+            athleteId: claimInviteTarget.athleteId,
+            email,
+          });
+        }}
+        isSubmitting={claimInviteMutation.isPending}
+        submitError={
+          claimInviteMutation.error instanceof Error
+            ? claimInviteMutation.error.message
+            : null
+        }
+        result={claimInviteResult}
         onRevoke={() => {
-          if (claimInvite) revokeInviteMutation.mutate(claimInvite.athleteId);
+          if (claimInviteTarget) {
+            revokeInviteMutation.mutate(claimInviteTarget.athleteId);
+          }
         }}
         isRevoking={revokeInviteMutation.isPending}
       />

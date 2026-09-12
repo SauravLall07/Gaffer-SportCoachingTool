@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard, type SessionUser } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { createClaimInviteSchema } from '../claims/claims.schemas';
 import { ClaimsService } from '../claims/claims.service';
 import { zodValidate } from '../common/zod-validate';
 import { requireCoachTeamId, requireTeamId } from '../common/team-access';
@@ -111,11 +112,13 @@ export class AthletesController {
   async createClaimInvite(
     @CurrentUser() user: SessionUser,
     @Param('athleteId', ParseUUIDPipe) athleteId: string,
+    @Body() body: unknown,
   ) {
-    const teamId = await this.getTeamId(user.id);
+    const input = zodValidate(createClaimInviteSchema, body);
+    const teamId = await this.getCoachTeamId(user.id);
     await this.athletesService.findOne(teamId, athleteId);
 
-    return this.claimsService.createInvite(athleteId, user.id);
+    return this.claimsService.createInvite(athleteId, input.email, user.id);
   }
 
   @Delete(':athleteId/claim-invite')
@@ -123,7 +126,7 @@ export class AthletesController {
     @CurrentUser() user: SessionUser,
     @Param('athleteId', ParseUUIDPipe) athleteId: string,
   ) {
-    const teamId = await this.getTeamId(user.id);
+    const teamId = await this.getCoachTeamId(user.id);
     await this.athletesService.findOne(teamId, athleteId);
 
     await this.claimsService.revokeInvite(athleteId);
