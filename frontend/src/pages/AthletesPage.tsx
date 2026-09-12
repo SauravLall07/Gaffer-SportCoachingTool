@@ -55,6 +55,7 @@ export default function AthletesPage() {
   const queryClient = useQueryClient();
   const { team } = useAuth();
   const canManageRoster = team?.role === "coach";
+  const canManageClaims = team?.role === "coach" || team?.role === "assistant";
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -395,6 +396,7 @@ export default function AthletesPage() {
                     selectedId={selectedId}
                     showArchived={showArchived}
                     readOnly={!canManageRoster}
+                    showClaimStatus={canManageClaims}
                     onSelect={handleSelect}
                     onEdit={openEditForm}
                     onArchive={openArchiveDialog}
@@ -429,7 +431,7 @@ export default function AthletesPage() {
                   onEdit={openEditForm}
                   onArchive={openArchiveDialog}
                   onRestore={handleRestore}
-                  onInviteClaim={handleInviteClaim}
+                  onInviteClaim={canManageClaims ? handleInviteClaim : undefined}
                   readOnly={!canManageRoster}
                 />
               ) : (

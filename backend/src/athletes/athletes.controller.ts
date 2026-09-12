@@ -105,9 +105,10 @@ export class AthletesController {
     return this.athletesService.restore(teamId, id);
   }
 
-  // Claim-invite endpoints live here rather than on ClaimsController because
-  // they need the coach's team context — findOne doubles as the team-ownership
-  // check, mirroring how the CRUD routes above scope by teamId.
+  // Claim-invite endpoints are available to team staff (coach or assistant).
+  // getTeamId resolves only team members, while findOne keeps the athlete scoped
+  // to that same team. Player accounts are not team members and cannot use these
+  // roster-management endpoints.
   @Post(':athleteId/claim-invite')
   async createClaimInvite(
     @CurrentUser() user: SessionUser,
@@ -115,7 +116,7 @@ export class AthletesController {
     @Body() body: unknown,
   ) {
     const input = zodValidate(createClaimInviteSchema, body);
-    const teamId = await this.getCoachTeamId(user.id);
+    const teamId = await this.getTeamId(user.id);
     await this.athletesService.findOne(teamId, athleteId);
 
     return this.claimsService.createInvite(athleteId, input.email, user.id);
@@ -126,7 +127,7 @@ export class AthletesController {
     @CurrentUser() user: SessionUser,
     @Param('athleteId', ParseUUIDPipe) athleteId: string,
   ) {
-    const teamId = await this.getCoachTeamId(user.id);
+    const teamId = await this.getTeamId(user.id);
     await this.athletesService.findOne(teamId, athleteId);
 
     await this.claimsService.revokeInvite(athleteId);
