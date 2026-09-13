@@ -134,13 +134,6 @@
       "when": 1789131395527,
       "tag": "0017_season_statistics",
       "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "7",
-      "when": 1789214988806,
-      "tag": "0018_past_gertrude_yorkes",
-      "breakpoints": true
     }
   ]
 }
