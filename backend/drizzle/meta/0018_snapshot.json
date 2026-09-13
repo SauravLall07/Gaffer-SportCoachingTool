@@ -1,5 +1,5 @@
 {
-  "id": "c5852d5a-f8ec-45a4-a279-6e1f7730cc69",
+  "id": "8cb07900-9303-4cff-a1ed-3df2d71a1032",
   "prevId": "1230e154-248f-48be-a1ca-63a2be08f776",
   "version": "7",
   "dialect": "postgresql",
@@ -777,6 +777,30 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "venue_address": {
+          "name": "venue_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "notes": {
           "name": "notes",
@@ -1707,12 +1731,6 @@
         "athlete_id": {
           "name": "athlete_id",
           "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
           "primaryKey": false,
           "notNull": true
         },

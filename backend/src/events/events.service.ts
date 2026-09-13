@@ -54,6 +54,11 @@ export class EventsService {
         type: dto.type,
         scheduledAt: new Date(dto.scheduledAt),
         location: dto.location,
+        venueAddress: dto.venueAddress,
+        weatherLocation: dto.weatherLocation,
+        weatherLatitude: dto.weatherLatitude,
+        weatherLongitude: dto.weatherLongitude,
+        weatherTimezone: dto.weatherTimezone,
         notes: dto.notes,
         competitionId,
       })
@@ -209,6 +214,21 @@ export class EventsService {
           ? { scheduledAt: new Date(dto.scheduledAt) }
           : {}),
         ...(dto.location !== undefined ? { location: dto.location } : {}),
+        ...(dto.venueAddress !== undefined
+          ? { venueAddress: dto.venueAddress }
+          : {}),
+        ...(dto.weatherLocation !== undefined
+          ? { weatherLocation: dto.weatherLocation }
+          : {}),
+        ...(dto.weatherLatitude !== undefined
+          ? { weatherLatitude: dto.weatherLatitude }
+          : {}),
+        ...(dto.weatherLongitude !== undefined
+          ? { weatherLongitude: dto.weatherLongitude }
+          : {}),
+        ...(dto.weatherTimezone !== undefined
+          ? { weatherTimezone: dto.weatherTimezone }
+          : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
         ...(dto.competitionId !== undefined || type !== 'match'
           ? { competitionId }
@@ -269,17 +289,25 @@ export class EventsService {
       .from(athletes)
       .where(and(eq(athletes.teamId, team.id), isNull(athletes.archivedAt)));
 
-    const teamAthleteIds = new Set(teamAthletes.map((athlete) => athlete.id));
+    const teamAthletesById = new Map(
+      teamAthletes.map((athlete) => [athlete.id, athlete]),
+    );
     const requestedIds = dto.benchAthleteIds
       ? [...dto.startingAthleteIds, ...dto.benchAthleteIds]
       : dto.startingAthleteIds;
 
     for (const athleteId of requestedIds) {
-      if (!teamAthleteIds.has(athleteId)) {
+      const athlete = teamAthletesById.get(athleteId);
+      if (!athlete) {
         throw new BadRequestException(
           dto.benchAthleteIds
             ? 'One or more selected athletes are not on this team.'
             : 'One or more starting athletes are not on this team.',
+        );
+      }
+      if (athlete.status === 'injured') {
+        throw new BadRequestException(
+          'Injured athletes cannot be selected for a match.',
         );
       }
     }
@@ -355,7 +383,7 @@ export class EventsService {
     try {
       const squadAthletes = dto.benchAthleteIds
         ? teamAthletes.filter((athlete) => requestedIds.includes(athlete.id))
-        : teamAthletes;
+        : teamAthletes.filter((athlete) => athlete.status !== 'injured');
 
       if (dto.benchAthleteIds && requestedIds.length > 0) {
         await this.databaseService.database
