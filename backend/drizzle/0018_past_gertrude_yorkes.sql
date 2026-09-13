@@ -1,1 +1,0 @@
-ALTER TABLE "player_claim_invites" ADD COLUMN "email" text NOT NULL;
