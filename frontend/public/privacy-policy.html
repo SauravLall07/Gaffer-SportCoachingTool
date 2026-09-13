@@ -78,6 +78,17 @@
         <p>For privacy questions, requests or concerns, contact <a href="mailto:2801261@students.wits.ac.za">2801261@students.wits.ac.za</a>.</p>
       </section>
     </main>
-    <footer><a href="/">Return to Gaffer</a> &nbsp;·&nbsp; <a href="/terms-of-service.html">Terms of Service</a></footer>
+    <footer><a id="return-link" href="/">Return to Gaffer</a> &nbsp;·&nbsp; <a id="terms-link" href="/terms-of-service.html">Terms of Service</a></footer>
+    <script>
+      (() => {
+        const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+        const allowedRoutes = new Set(['/dashboard', '/player/dashboard']);
+        if (returnTo && allowedRoutes.has(returnTo)) {
+          document.getElementById('return-link').href = returnTo;
+          document.getElementById('return-link').textContent = 'Return to dashboard';
+          document.getElementById('terms-link').href = `/terms-of-service.html?returnTo=${encodeURIComponent(returnTo)}`;
+        }
+      })();
+    </script>
   </body>
 </html>

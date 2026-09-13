@@ -44,6 +44,7 @@ const LEGAL_FOOTER_LINKS: FooterLink[] = [
  */
 export function Footer({ variant = "coach" }: FooterProps) {
   const year = new Date().getFullYear();
+  const returnTo = variant === "player" ? "/player/dashboard" : "/dashboard";
   const links = [
     ...(variant === "player" ? PLAYER_FOOTER_LINKS : COACH_FOOTER_LINKS),
     ...LEGAL_FOOTER_LINKS,
@@ -69,7 +70,7 @@ export function Footer({ variant = "coach" }: FooterProps) {
               <li key={link.path}>
                 {link.path.endsWith(".html") ? (
                   <a
-                    href={link.path}
+                    href={`${link.path}?returnTo=${encodeURIComponent(returnTo)}`}
                     className="transition-colors hover:text-foreground"
                   >
                     {link.label}
