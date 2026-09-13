@@ -334,13 +334,13 @@ export default function SignUpPage() {
                   className="cursor-pointer text-sm leading-relaxed text-muted-foreground"
                 >
                   I agree to the{" "}
-                  <Link to="/terms-of-service.html" className="text-primary hover:underline">
+                  <a href="/terms-of-service.html" className="text-primary hover:underline">
                     Terms of Service
-                  </Link>{" "}
+                  </a>{" "}
                   and{" "}
-                  <Link to="/privacy-policy.html" className="text-primary hover:underline">
+                  <a href="/privacy-policy.html" className="text-primary hover:underline">
                     Privacy Policy
-                  </Link>
+                  </a>
                 </label>
               </div>
               {errors.terms && (

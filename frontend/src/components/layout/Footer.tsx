@@ -67,12 +67,21 @@ export function Footer({ variant = "coach" }: FooterProps) {
           <ul className="flex flex-wrap items-center gap-x-6 gap-y-2">
             {links.map((link) => (
               <li key={link.path}>
-                <Link
-                  to={link.path}
-                  className="transition-colors hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
+                {link.path.endsWith(".html") ? (
+                  <a
+                    href={link.path}
+                    className="transition-colors hover:text-foreground"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    to={link.path}
+                    className="transition-colors hover:text-foreground"
+                  >
+                    {link.label}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
