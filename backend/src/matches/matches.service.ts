@@ -206,6 +206,13 @@ export class MatchesService {
       dto.opponentPlayerId ?? null,
       dto.opponentLabel ?? null,
     );
+    await this.validateGoalkeeperSave(
+      match.id,
+      dto.team,
+      dto.eventType,
+      dto.athleteId ?? null,
+      dto.opponentPlayerId ?? null,
+    );
     await this.validateSubstitution(
       match.id,
       dto.team,
@@ -645,6 +652,15 @@ export class MatchesService {
       dto.opponentLabel === undefined
         ? logged.opponentLabel
         : dto.opponentLabel,
+    );
+    await this.validateGoalkeeperSave(
+      match.id,
+      logged.team,
+      dto.eventType ?? logged.eventType,
+      dto.athleteId === undefined ? logged.athleteId : dto.athleteId,
+      dto.opponentPlayerId === undefined
+        ? logged.opponentPlayerId
+        : dto.opponentPlayerId,
     );
     await this.validateSubstitution(
       match.id,
@@ -1228,6 +1244,75 @@ export class MatchesService {
       await this.requireMatchAthlete(matchId, detail);
     } else {
       await this.requireOpponentPlayer(matchId, detail);
+    }
+  }
+
+  /** Same rule as the lineup board: only a player with position GK can occupy the keeper role. */
+  private isGoalkeeperPosition(position: string | null | undefined) {
+    return (position ?? '').trim().toUpperCase() === 'GK';
+  }
+
+  private async validateGoalkeeperSave(
+    matchId: string,
+    team: 'own' | 'opponent',
+    eventType: string,
+    athleteId: string | null,
+    opponentPlayerId: string | null,
+  ) {
+    if (eventType !== 'goalkeeper_save') {
+      return;
+    }
+
+    if (team === 'own') {
+      if (!athleteId) {
+        throw new BadRequestException(
+          'A goalkeeper is required to log a save.',
+        );
+      }
+      const [athlete] = await this.databaseService.database
+        .select({ position: athletes.position })
+        .from(athleteMatchStats)
+        .innerJoin(athletes, eq(athleteMatchStats.athleteId, athletes.id))
+        .where(
+          and(
+            eq(athleteMatchStats.matchId, matchId),
+            eq(athleteMatchStats.athleteId, athleteId),
+          ),
+        )
+        .limit(1);
+      if (!athlete) {
+        throw new BadRequestException('Athlete is not in this match squad.');
+      }
+      if (!this.isGoalkeeperPosition(athlete.position)) {
+        throw new BadRequestException(
+          'Only a goalkeeper can be credited with a save.',
+        );
+      }
+      return;
+    }
+
+    if (!opponentPlayerId) {
+      throw new BadRequestException('A goalkeeper is required to log a save.');
+    }
+    const [player] = await this.databaseService.database
+      .select({ position: opponentMatchPlayers.position })
+      .from(opponentMatchPlayers)
+      .where(
+        and(
+          eq(opponentMatchPlayers.id, opponentPlayerId),
+          eq(opponentMatchPlayers.matchId, matchId),
+        ),
+      )
+      .limit(1);
+    if (!player) {
+      throw new BadRequestException(
+        'Opponent player is not on this match squad.',
+      );
+    }
+    if (!this.isGoalkeeperPosition(player.position)) {
+      throw new BadRequestException(
+        'Only a goalkeeper can be credited with a save.',
+      );
     }
   }
 

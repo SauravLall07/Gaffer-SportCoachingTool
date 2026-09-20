@@ -25,7 +25,7 @@ import {
   type MarkerStats,
   type PitchHalf,
 } from "./live-match-model";
-import { BootIcon, SoccerBallIcon } from "./match-icons";
+import { BootIcon, SaveIcon, SoccerBallIcon, TackleIcon } from "./match-icons";
 
 const TOKEN_FACE =
   "live-squad-token relative flex size-12 items-center justify-center overflow-visible text-base font-bold tabular-nums shadow-[0_2px_8px_rgba(0,0,0,0.45)]";
@@ -138,6 +138,12 @@ function badgeAnchorStyle(kind: MarkerBadgeKind): CSSProperties {
   if (kind === "assist") {
     return { bottom: "-6px", left: "-6px" };
   }
+  if (kind === "save") {
+    return { top: "-6px", right: "-6px" };
+  }
+  if (kind === "tackle") {
+    return { top: "50%", right: "-7px", transform: "translateY(-50%)" };
+  }
   return { bottom: "-6px", right: "-6px" };
 }
 
@@ -156,11 +162,15 @@ function MarkerOverlays({ stats }: { stats: MarkerStats }) {
             ? `goal-${stats.goals}`
             : badge.kind === "assist"
               ? `assist-${stats.assists}`
-              : badge.kind === "card"
-                ? `card-${stats.secondYellow ? "2y" : stats.red ? "r" : "y"}`
-                : isSubIn
-                  ? `sub-in-${stats.subMinute ?? ""}`
-                  : `sub-out-${stats.subMinute ?? ""}`;
+              : badge.kind === "save"
+                ? `save-${stats.saves}`
+                : badge.kind === "tackle"
+                  ? `tackle-${stats.tackles}`
+                  : badge.kind === "card"
+                    ? `card-${stats.secondYellow ? "2y" : stats.red ? "r" : "y"}`
+                    : isSubIn
+                      ? `sub-in-${stats.subMinute ?? ""}`
+                      : `sub-out-${stats.subMinute ?? ""}`;
         const subColor = isSubIn ? "text-[#00d99a]" : "text-[#ff5b5f]";
         return (
           <span
@@ -202,6 +212,18 @@ function MarkerOverlays({ stats }: { stats: MarkerStats }) {
                 <span className="relative flex size-5 items-center justify-center rounded-full bg-[#141414] text-[#e8ecef] shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
                   <BootIcon className="size-5" />
                   <BadgeCount value={stats.assists} />
+                </span>
+              ) : null}
+              {badge.kind === "save" ? (
+                <span className="relative flex size-5 items-center justify-center rounded-full bg-[#141414] text-[#38bdf8] shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
+                  <SaveIcon className="size-3.5" />
+                  <BadgeCount value={stats.saves} />
+                </span>
+              ) : null}
+              {badge.kind === "tackle" ? (
+                <span className="relative flex size-5 items-center justify-center rounded-full bg-[#141414] text-[#818cf8] shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
+                  <TackleIcon className="size-3.5" />
+                  <BadgeCount value={stats.tackles} />
                 </span>
               ) : null}
               {badge.kind === "card" ? (

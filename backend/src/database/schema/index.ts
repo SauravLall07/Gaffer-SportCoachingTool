@@ -637,6 +637,8 @@ export const matchEventType = pgEnum('match_event_type', [
   'substitution',
   'penalty',
   'injury',
+  'goalkeeper_save',
+  'defender_tackle',
 ]);
 
 export const matchEvents = pgTable(

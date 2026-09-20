@@ -5,6 +5,8 @@ const BREAKDOWN_COLORS = {
   cards: "#f5c518",
   subs: "#c084fc",
   assists: "#5b9fff",
+  saves: "#38bdf8",
+  tackles: "#818cf8",
 } as const;
 
 export function chronological(events: MatchLogEvent[]) {
@@ -154,6 +156,18 @@ export function eventBreakdownSlices(events: MatchLogEvent[]) {
       name: "Assists",
       value: events.filter((event) => event.eventType === "assist").length,
       color: BREAKDOWN_COLORS.assists,
+    },
+    {
+      name: "Saves",
+      value: events.filter((event) => event.eventType === "goalkeeper_save")
+        .length,
+      color: BREAKDOWN_COLORS.saves,
+    },
+    {
+      name: "Tackles",
+      value: events.filter((event) => event.eventType === "defender_tackle")
+        .length,
+      color: BREAKDOWN_COLORS.tackles,
     },
   ];
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
