@@ -3,15 +3,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LandingSceneController } from "./landing-scene";
 
 interface LandingSceneProps {
-  onStatusChange: (status: LandingSceneStatus) => void;
+  onReadyChange: (ready: boolean) => void;
 }
 
-export type LandingSceneStatus = "loading" | "ready" | "fallback";
-
-export function LandingScene({ onStatusChange }: LandingSceneProps) {
+export function LandingScene({ onReadyChange }: LandingSceneProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<LandingSceneController | null>(null);
-  const statusCallbackRef = useRef(onStatusChange);
+  const readyCallbackRef = useRef(onReadyChange);
   const [ready, setReady] = useState(false);
   const [paused, setPaused] = useState(false);
   const [reduceMotion] = useState(() =>
@@ -19,24 +17,26 @@ export function LandingScene({ onStatusChange }: LandingSceneProps) {
   );
 
   useEffect(() => {
-    statusCallbackRef.current = onStatusChange;
-  }, [onStatusChange]);
+    readyCallbackRef.current = onReadyChange;
+  }, [onReadyChange]);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) {
       setReady(false);
-      statusCallbackRef.current("fallback");
+      readyCallbackRef.current(false);
       return;
     }
     if (reduceMotion) {
       setReady(false);
-      statusCallbackRef.current("fallback");
+      readyCallbackRef.current(false);
       return;
     }
 
     let cancelled = false;
     let documentVisible = !document.hidden;
+    let idleHandle = 0;
+    let timeoutHandle = 0;
 
     const updateActivity = () => {
       controllerRef.current?.setActive(documentVisible);
@@ -51,17 +51,19 @@ export function LandingScene({ onStatusChange }: LandingSceneProps) {
           onReadyChange: (nextReady) => {
             if (cancelled) return;
             setReady(nextReady);
-            statusCallbackRef.current(nextReady ? "ready" : "fallback");
+            readyCallbackRef.current(nextReady);
           },
         });
         updateActivity();
       } catch {
         setReady(false);
-        statusCallbackRef.current("fallback");
+        readyCallbackRef.current(false);
       }
     };
 
-    void initialise();
+    const requestIdle = window.requestIdleCallback;
+    if (requestIdle) idleHandle = requestIdle(() => void initialise(), { timeout: 900 });
+    else timeoutHandle = window.setTimeout(() => void initialise(), 1);
 
     const resizeObserver = new ResizeObserver(() => controllerRef.current?.resize());
     resizeObserver.observe(host);
@@ -77,6 +79,8 @@ export function LandingScene({ onStatusChange }: LandingSceneProps) {
 
     return () => {
       cancelled = true;
+      if (idleHandle) window.cancelIdleCallback(idleHandle);
+      if (timeoutHandle) window.clearTimeout(timeoutHandle);
       resizeObserver.disconnect();
       themeObserver.disconnect();
       document.removeEventListener("visibilitychange", handleVisibility);

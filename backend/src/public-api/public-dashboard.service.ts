@@ -20,7 +20,7 @@ import type {
 } from './public-api.schemas';
 
 function loggedEventCount(
-  eventType: 'goal' | 'assist' | 'yellow_card' | 'red_card' | 'goalkeeper_save',
+  eventType: 'goal' | 'assist' | 'yellow_card' | 'red_card',
 ) {
   return sql<number>`coalesce((
     select count(*)::int from ${matchEvents}

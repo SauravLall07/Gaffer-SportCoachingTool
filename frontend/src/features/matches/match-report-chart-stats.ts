@@ -1,4 +1,3 @@
-import { EVENT_COLOR } from "./event-visuals.ts";
 import type { MatchLogEvent } from "./types";
 
 const BREAKDOWN_COLORS = {
@@ -54,11 +53,6 @@ export function teamComparisonRows(events: MatchLogEvent[]) {
       category: "SUBS",
       own: countBy(events, "own", ["substitution"]),
       opp: countBy(events, "opponent", ["substitution"]),
-    },
-    {
-      category: "SAVES",
-      own: countBy(events, "own", ["goalkeeper_save"]),
-      opp: countBy(events, "opponent", ["goalkeeper_save"]),
     },
   ];
 }
@@ -160,12 +154,6 @@ export function eventBreakdownSlices(events: MatchLogEvent[]) {
       name: "Assists",
       value: events.filter((event) => event.eventType === "assist").length,
       color: BREAKDOWN_COLORS.assists,
-    },
-    {
-      name: "Saves",
-      value: events.filter((event) => event.eventType === "goalkeeper_save")
-        .length,
-      color: EVENT_COLOR.goalkeeper_save,
     },
   ];
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
