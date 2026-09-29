@@ -194,6 +194,7 @@ export default function EventsPage() {
           now={now}
           onSelectDate={handleDayClick}
           onCreateEvent={handleDayClick}
+          readOnly={!canManageEvents}
         />
       )}
       {view === "week" && (
