@@ -391,8 +391,6 @@ function ParticipantManagementPanel({
   onRename: (participant: Participant) => void;
   onResolve: (invite: CompetitionInvite, approve: boolean) => void;
   onRemove: (participant: Participant) => void;
-  onRename: (participant: Participant) => void;
-  onResolve: (invite: CompetitionInvite, approve: boolean) => void;
 }) {
   return (
     <AppCard className="space-y-4">
