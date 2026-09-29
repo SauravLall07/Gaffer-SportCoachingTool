@@ -365,7 +365,7 @@ describe('CompetitionInvitesService (PostgreSQL)', () => {
     const assistantTeam = await addTeam('assistant');
     await pg.query("update competition_teams set display_name='Original club name' where id=$1", [slotId]);
     const { token } = await invite();
-    expect(await service.accept(token, 'coach', email, true, undefined, assistantTeam))
+    expect(await service.accept(token, 'coach', email, true))
       .toMatchObject({ joined: true, teamId: assistantTeam });
     expect((await pg.query("select role from team_members where user_id='coach'")).rows[0])
       .toEqual({ role: 'assistant' });
@@ -405,36 +405,25 @@ describe('CompetitionInvitesService (PostgreSQL)', () => {
       .rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('rejects selected teams that do not belong to the invitation recipient', async () => {
-    const existing = await addTeam('assistant');
+  it('only offers the invited recipient’s single registered team, not another team', async () => {
+    const registered = await addTeam('assistant');
     const { token } = await invite();
-    await expect(service.accept(token, 'coach', email, true, undefined, ownerTeamId))
-      .rejects.toBeInstanceOf(ForbiddenException);
-    expect(await service.accept(token, 'coach', email, true, undefined, existing))
+    expect((await service.eligibleTeams(token, 'coach', email)).teams)
+      .toEqual([{ id: registered, name: 'Original club name', role: 'assistant' }]);
+    expect((await service.eligibleTeams(token, 'coach', email)).teams.map(t => t.id))
+      .not.toContain(ownerTeamId);
+    expect(await service.accept(token, 'coach', email, true))
       .toEqual({ awaitingApproval: true });
   });
 
-  it('requires an explicit choice if the schema later permits multiple team memberships', async () => {
-    const first = await addTeam();
-    const second = randomUUID();
-    await pg.exec('alter table team_members drop constraint team_members_user_id_key');
-    try {
-      await pg.query("insert into teams (id, name) values ($1, 'Second club')", [second]);
-      await pg.query("insert into team_members (team_id, user_id, role) values ($1, 'coach', 'assistant')", [second]);
-      const { token } = await invite();
-      await expect(accept(token)).rejects.toBeInstanceOf(ConflictException);
-      expect((await service.eligibleTeams(token, 'coach', email)).teams.map(t => t.id).sort())
-        .toEqual([first, second].sort());
-      expect(await service.accept(token, 'coach', email, true, undefined, second))
-        .toEqual({ awaitingApproval: true });
-      const [request] = await service.listInvites(competitionId, 'admin');
-      expect(await service.resolveVerification(request.id, 'admin', true))
-        .toEqual({ approved: true });
-      expect((await pg.query('select team_id from competition_teams where id=$1', [slotId])).rows[0])
-        .toEqual({ team_id: second });
-    } finally {
-      await pg.exec('alter table team_members add constraint team_members_user_id_key unique (user_id)');
-    }
+  it('enforces one team membership per user at the database level', async () => {
+    await addTeam();
+    const other = randomUUID();
+    await pg.query("insert into teams (id, name) values ($1, 'Second club')", [other]);
+    await expect(pg.query(
+      "insert into team_members (team_id, user_id, role) values ($1, 'coach', 'assistant')",
+      [other],
+    )).rejects.toThrow();
   });
 
   it('rejects duplicate real-team participation without consuming the invite', async () => {

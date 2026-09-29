@@ -99,10 +99,9 @@ export default function JoinCompetitionPage() {
   const [newTeamName, setNewTeamName] = useState("");
   const [eligible, setEligible] = useState<EligibleCompetitionTeams | null>(null);
   const [eligibilityLoading, setEligibilityLoading] = useState(false);
-  const [selectedTeamId, setSelectedTeamId] = useState("");
 
   /* ── Auth state ────────────────────────────────────────────────────── */
-  const { status: authStatus, user, team, signUp, signIn, signOut, refreshSession } =
+  const { status: authStatus, user, signUp, signIn, signOut, refreshSession } =
     useAuth();
   const isSignedIn = authStatus === "authenticated";
 
@@ -177,9 +176,6 @@ export default function JoinCompetitionPage() {
     eligibleCompetitionTeams(token).then((response) => {
       if (cancelled) return;
       setEligible(response);
-      setSelectedTeamId((previous) =>
-        response.teams.some((t) => t.id === previous) ? previous :
-        response.teams.length === 1 ? response.teams[0].id : "");
     }).catch((err) => {
       if (!cancelled) setFormError(err instanceof ApiError ? err.message : "Unable to verify team membership.");
     }).finally(() => { if (!cancelled) setEligibilityLoading(false); });
@@ -226,7 +222,7 @@ export default function JoinCompetitionPage() {
     if (!user?.emailVerified || !eligible || eligible.playerTeams.length > 0 && eligible.teams.length === 0) return;
     try {
       if (!accepted) {
-        const response = await acceptCompetitionInvite(token, eligible?.canCreateTeam ? newTeamName.trim() : undefined, selectedTeamId || undefined);
+        const response = await acceptCompetitionInvite(token, eligible?.canCreateTeam ? newTeamName.trim() : undefined);
         if (response.awaitingApproval) {
           setAwaitingApproval(true);
           clearPendingCompetitionInviteToken(token);
@@ -439,22 +435,11 @@ export default function JoinCompetitionPage() {
               {eligibilityLoading && <p role="status">Checking your team membership…</p>}
               {eligible && eligible.teams.length > 0 ? (
                 <div className="space-y-2">
-                  <label htmlFor="competition-team-choice" className="block font-semibold">
-                    Select the team you are authorized to represent
-                  </label>
-                  <select id="competition-team-choice" required className="w-full rounded-md border border-border bg-background px-3 py-2"
-                    value={selectedTeamId} onChange={(event) => setSelectedTeamId(event.target.value)}>
-                    {eligible.teams.length > 1 && <option value="">Choose your team…</option>}
-                    {eligible.teams.map((candidate) => <option key={candidate.id} value={candidate.id}>
-                      {candidate.name} ({candidate.role === "assistant" ? "Assistant coach" : "Coach"})
-                    </option>)}
-                  </select>
-                  {eligible.teams.filter(candidate => candidate.id === selectedTeamId).map(candidate =>
-                    <p key={candidate.id}>Your Gaffer team: <strong>{candidate.name}</strong>
-                      {candidate.name.trim().toLocaleLowerCase() !== teamName.trim().toLocaleLowerCase()
-                        ? " — the names differ, so the competition administrator must approve the connection."
-                        : " — the names match. Please still confirm that this invitation is for your team."}
-                    </p>)}
+                  <p>Your Gaffer team: <strong>{eligible.teams[0].name}</strong> ({eligible.teams[0].role === "assistant" ? "Assistant coach" : "Coach"})
+                    {eligible.teams[0].name.trim().toLocaleLowerCase() !== teamName.trim().toLocaleLowerCase()
+                      ? " — the names differ, so the competition administrator must approve the connection."
+                      : " — the names match. Please still confirm that this invitation is for your team."}
+                  </p>
                   <p>Accepting does not change your existing team permissions.</p>
                 </div>
               ) : eligible && eligible.playerTeams.length > 0 ? (
@@ -505,7 +490,7 @@ export default function JoinCompetitionPage() {
           {!awaitingApproval && !declined && eligible && (eligible.teams.length > 0 || eligible.canCreateTeam) && <form onSubmit={(e) => void handleAlreadySignedInAccept(e)} className="w-full">
             <Button
               type="submit"
-              disabled={isSubmitting || !user?.emailVerified || eligibilityLoading || !eligible || (eligible.teams.length > 0 ? !selectedTeamId : !eligible.canCreateTeam || !newTeamName.trim())}
+              disabled={isSubmitting || !user?.emailVerified || eligibilityLoading || !eligible || (eligible.teams.length === 0 && (!eligible.canCreateTeam || !newTeamName.trim()))}
               className="w-full"
             >
               {isSubmitting ? "Submitting…" : accepted ? "Refresh membership" : "Confirm this is my team"}

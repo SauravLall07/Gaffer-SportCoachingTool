@@ -223,6 +223,8 @@ export class CompetitionInvitesService {
     const playerTeams = await db.select({ teamId: athletes.teamId, teamName: teams.name })
       .from(athletes).innerJoin(teams, eq(teams.id, athletes.teamId))
       .where(eq(athletes.userId, userId));
+    if (memberships.length > 1)
+      throw new ConflictException('This account has multiple team memberships. Contact support.');
     return {
       teams: memberships,
       playerTeams: playerTeams.filter(p => !memberships.some(m => m.id === p.teamId)),
@@ -232,7 +234,7 @@ export class CompetitionInvitesService {
   }
 
   /** Explicit representative confirmation; name disagreements are reviewed by the admin. */
-  async accept(token: string, userId: string, email: string, confirmed: true, teamName?: string, selectedTeamId?: string) {
+  async accept(token: string, userId: string, email: string, confirmed: true, teamName?: string) {
     if (confirmed !== true) throw new ForbiddenException('Confirm the team before accepting.');
     const found = await this.findValidInvite(token);
     if (!found) throw invalidInvite();
@@ -245,13 +247,11 @@ export class CompetitionInvitesService {
       throw new ConflictException('This participant is awaiting administrator verification.');
     }
     const options = await this.eligibleTeams(token, userId, email);
-    if (options.teams.length > 1 && !selectedTeamId)
-      throw new ConflictException('Select the team you are authorized to represent.');
-    const existing = selectedTeamId
-      ? options.teams.find(t => t.id === selectedTeamId)
-      : options.teams[0];
-    if (selectedTeamId && !existing)
-      throw new ForbiddenException('You are not an authorized representative of this team.');
+    // Gaffer supports only one team membership per account. Fail closed if
+    // inconsistent data is encountered instead of choosing an arbitrary team.
+    if (options.teams.length > 1)
+      throw new ConflictException('This account has multiple team memberships. Contact support.');
+    const existing = options.teams[0];
     if (!existing && !options.canCreateTeam)
       throw new ForbiddenException('Players cannot connect teams to competitions. Ask the administrator to invite an authorized coach or assistant.');
     const proposedName = existing?.name ?? teamName?.trim();

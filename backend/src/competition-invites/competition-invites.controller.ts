@@ -91,6 +91,6 @@ export class CompetitionInvitesController {
   accept(@Param('token') token: string, @CurrentUser() user: SessionUser, @Body() body: unknown) {
     if (!user.emailVerified) throw new ForbiddenException('Verify your email before responding to an invitation.');
     const input = zodValidate(acceptCompetitionInviteSchema, body);
-    return this.invites.accept(token, user.id, user.email, input.confirmed, input.teamName, input.selectedTeamId);
+    return this.invites.accept(token, user.id, user.email, input.confirmed, input.teamName);
   }
 }

@@ -65,7 +65,7 @@ describe('CompetitionInvitesController', () => {
 
   it('takes acceptance identity and email only from the session', async () => {
     await controller.accept('token', user, { confirmed: true, teamName: 'Correct XI' });
-    expect(service.accept).toHaveBeenCalledWith('token', user.id, user.email, true, 'Correct XI', undefined);
+    expect(service.accept).toHaveBeenCalledWith('token', user.id, user.email, true, 'Correct XI');
     expect(() => controller.accept('token', user, { confirmed: false })).toThrow(BadRequestException);
   });
 
