@@ -12,6 +12,7 @@ import { DayEventsDialog } from "@/features/events/DayEventsDialog";
 import { EventDetailDialog } from "@/features/events/EventDetailDialog";
 import { MobileCalendarView } from "@/features/events/MobileCalendarView";
 import { MonthCalendar } from "@/features/events/MonthCalendar";
+import { getCalendarCompetitionOptions, type MatchCompetitionFilter } from "@/features/events/match-competition-filter";
 import { WeekView } from "@/features/events/WeekView";
 import {
   WEEK_STARTS_ON,
@@ -26,7 +27,7 @@ import {
 import { useNow } from "@/features/events/hooks";
 import { useAuth } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
-import { fetchPlayerEvents } from "@/services/player";
+import { fetchPlayerEvents, fetchPlayerStandings } from "@/services/player";
 import type { EventType, TeamEvent } from "@/features/events/types";
 import "@/features/events/events-background.css";
 
@@ -64,16 +65,27 @@ export default function PlayerEventsPage() {
     enabled: Boolean(athleteId),
   });
 
+  const { data: competitions = [] } = useQuery({
+    queryKey: ["player", "standings", athleteId],
+    queryFn: () => fetchPlayerStandings(athleteId),
+    enabled: Boolean(athleteId),
+  });
+
   const [view, setView] = useState<CalendarView>("month");
   const [cursor, setCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [hiddenTypes, setHiddenTypes] = useState<Set<EventType>>(() => new Set());
+  const [matchFilter, setMatchFilter] = useState<MatchCompetitionFilter>("all");
   const [panel, setPanel] = useState<Panel>({ kind: "closed" });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const competitionOptions = useMemo(
+    () => getCalendarCompetitionOptions(events ?? [], competitions),
+    [events, competitions],
+  );
   const visibleEvents = useMemo(
-    () => filterEventTypes(events ?? [], hiddenTypes),
-    [events, hiddenTypes],
+    () => filterEventTypes(events ?? [], hiddenTypes, matchFilter, competitions),
+    [events, hiddenTypes, matchFilter, competitions],
   );
   const eventsByDay = useMemo(() => groupEventsByDay(visibleEvents), [visibleEvents]);
   const eventDays = useMemo(() => new Set(eventsByDay.keys()), [eventsByDay]);
@@ -277,6 +289,9 @@ export default function PlayerEventsPage() {
             hiddenTypes={hiddenTypes}
             readOnly
             onToggleType={handleToggleType}
+            matchFilter={matchFilter}
+            competitionOptions={competitionOptions}
+            onMatchFilterChange={setMatchFilter}
             onSelectDate={handleDayClick}
             onNavigate={navigate}
             onToday={goToToday}
@@ -293,6 +308,9 @@ export default function PlayerEventsPage() {
             hiddenTypes={hiddenTypes}
             readOnly
             onToggleType={handleToggleType}
+            matchFilter={matchFilter}
+            competitionOptions={competitionOptions}
+            onMatchFilterChange={setMatchFilter}
             onViewChange={setView}
             onPrevious={() => navigate(-1)}
             onNext={() => navigate(1)}
