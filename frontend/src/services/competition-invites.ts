@@ -4,14 +4,19 @@ export interface CompetitionInvitePreview {
   valid: boolean;
   competitionName?: string;
   teamName?: string;
+  awaitingApproval?: boolean;
 }
 
 export const previewCompetitionInvite = (token: string) =>
   apiFetch<CompetitionInvitePreview>(`/competition-invites/${encodeURIComponent(token)}`);
 
-export const acceptCompetitionInvite = (token: string) =>
-  apiFetch<{ joined: boolean; teamId: string; competitionId: string }>(
-    `/competition-invites/${encodeURIComponent(token)}/accept`, { method: "POST" },
+export const declineCompetitionInvite = (token: string) =>
+  apiFetch<{ declined: boolean }>(`/competition-invites/${encodeURIComponent(token)}/decline`, { method: "POST" });
+
+export const acceptCompetitionInvite = (token: string, teamName?: string) =>
+  apiFetch<{ joined?: boolean; awaitingApproval?: boolean; teamId?: string; competitionId?: string }>(
+    `/competition-invites/${encodeURIComponent(token)}/accept`,
+    { method: "POST", body: JSON.stringify({ confirmed: true, ...(teamName ? { teamName } : {}) }) },
   );
 
 // A 403 can also mean an assistant is ineligible; a 409 can mean the

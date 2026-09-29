@@ -13,6 +13,7 @@ import {
   acceptCompetitionInvite,
   classifyCompetitionInviteAcceptError,
   clearPendingCompetitionInviteToken,
+  declineCompetitionInvite,
   previewCompetitionInvite,
   storePendingCompetitionInviteToken,
   type CompetitionInvitePreview,
@@ -89,9 +90,12 @@ export default function JoinCompetitionPage() {
   const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const [retryPreview, setRetryPreview] = useState(0);
   const [accepted, setAccepted] = useState(false);
+  const [awaitingApproval, setAwaitingApproval] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
 
   /* ── Auth state ────────────────────────────────────────────────────── */
-  const { status: authStatus, user, signUp, signIn, signOut, refreshSession } =
+  const { status: authStatus, user, team, signUp, signIn, signOut, refreshSession } =
     useAuth();
   const isSignedIn = authStatus === "authenticated";
 
@@ -129,6 +133,8 @@ export default function JoinCompetitionPage() {
     setPreview(null);
     setFormError(null);
     setAccepted(false);
+    setAwaitingApproval(false);
+    setDeclined(false);
     previewCompetitionInvite(token)
       .then((data) => {
         if (cancelled) return;
@@ -138,6 +144,8 @@ export default function JoinCompetitionPage() {
         } else {
           storePendingCompetitionInviteToken(token);
           setPreview(data);
+          if (data.awaitingApproval) setAwaitingApproval(true);
+          setNewTeamName(data.teamName ?? "");
         }
       })
       .catch(() => {
@@ -191,7 +199,13 @@ export default function JoinCompetitionPage() {
     if (!user?.emailVerified) return;
     try {
       if (!accepted) {
-        await acceptCompetitionInvite(token);
+        const response = await acceptCompetitionInvite(token, team?.id ? undefined : newTeamName.trim());
+        if (response.awaitingApproval) {
+          setAwaitingApproval(true);
+          clearPendingCompetitionInviteToken(token);
+          setFormError(null);
+          return;
+        }
         setAccepted(true);
       }
       // The invitation is consumed — drop any persisted copy so the resumer
@@ -281,6 +295,22 @@ export default function JoinCompetitionPage() {
     setIsSubmitting(false);
   };
 
+  const handleDecline = async () => {
+    if (!window.confirm("Decline this invitation? You will need a new invitation to join later.")) return;
+    setIsSubmitting(true);
+    setFormError(null);
+    try {
+      await declineCompetitionInvite(token);
+      clearPendingCompetitionInviteToken(token);
+      setAwaitingApproval(false);
+      setDeclined(true);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not decline invitation.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   /* ── Email-mismatch recovery: sign out, stay on the invite, sign in
    * again with the email the coach actually invited. ────────────────── */
   const handleSignOutAndRetry = async () => {
@@ -353,9 +383,34 @@ export default function JoinCompetitionPage() {
             <p className="text-sm text-muted-foreground">Team: {teamName}</p>
           </div>
 
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            You're signed in — confirm below to join as a coach.
-          </p>
+          {declined ? (
+            <p role="status" className="text-sm">You declined this invitation. Ask the administrator to send a new one if necessary.</p>
+          ) : awaitingApproval ? (
+            <p role="status" className="text-sm leading-relaxed text-muted-foreground">
+              Your team verification request was submitted. The competition administrator must approve
+              the connection before you join. You can close this page.
+            </p>
+          ) : (
+            <div className="w-full space-y-3 text-left text-sm">
+              <p>Confirm that the invitation for <strong>{teamName}</strong> is intended for your team.</p>
+              {team?.id ? (
+                <p>Your registered Gaffer team: <strong>{team.name}</strong>
+                  {team.name.trim().toLocaleLowerCase() !== teamName.trim().toLocaleLowerCase()
+                    ? " — the names differ, so the competition administrator will need to approve the connection."
+                    : " — the names match."}
+                </p>
+              ) : (
+                <label className="block space-y-2">Create your Gaffer team with this name:
+                  <input className="w-full rounded-md border border-border bg-background px-3 py-2"
+                    maxLength={100} required value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)} />
+                  <span className="block text-xs text-muted-foreground">Review or correct the proposed name.
+                    Changes require administrator verification.</span>
+                </label>
+              )}
+              <p>Not your team? Do not accept. Ask the administrator to correct the invitation.</p>
+            </div>
+          )}
 
           {formError && (
             <div role="alert" className="space-y-3 text-center">
@@ -383,15 +438,19 @@ export default function JoinCompetitionPage() {
           )}
 
           {!user?.emailVerified && <Button variant="outline" onClick={() => navigate("/verify-email", { state: { email: user?.email, inviteToken: token, inviteKind: "competition" } })}>Verify your email to accept</Button>}
-          <form onSubmit={(e) => void handleAlreadySignedInAccept(e)} className="w-full">
+          {!awaitingApproval && !declined && <form onSubmit={(e) => void handleAlreadySignedInAccept(e)} className="w-full">
             <Button
               type="submit"
-              disabled={isSubmitting || !user?.emailVerified}
+              disabled={isSubmitting || !user?.emailVerified || (!team?.id && !newTeamName.trim())}
               className="w-full"
             >
-              {isSubmitting ? "Joining…" : accepted ? "Refresh membership" : "Accept invitation"}
+              {isSubmitting ? "Submitting…" : accepted ? "Refresh membership" : "Confirm this is my team"}
             </Button>
-          </form>
+          </form>}
+          {!declined && <Button type="button" variant="outline" disabled={isSubmitting || !user?.emailVerified}
+            onClick={() => void handleDecline()}>
+            {awaitingApproval ? "Withdraw verification request" : "This isn't my team — decline"}
+          </Button>}
         </div>
       </Shell>
     );

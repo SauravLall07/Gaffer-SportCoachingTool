@@ -21,6 +21,8 @@ describe('CompetitionInvitesController', () => {
     revokeInvite: jest.fn(),
     preview: jest.fn(),
     accept: jest.fn(),
+    decline: jest.fn(),
+    resolveVerification: jest.fn(),
   };
   const controller = new CompetitionInvitesController(
     service as unknown as CompetitionInvitesService,
@@ -31,7 +33,7 @@ describe('CompetitionInvitesController', () => {
   });
 
   it('protects all mutations and listing with the existing AuthGuard; preview stays public', () => {
-    for (const method of ['create', 'list', 'revoke', 'accept'] as const) {
+    for (const method of ['create', 'list', 'revoke', 'accept', 'decline', 'resolve'] as const) {
       // Inspect decorator metadata on the original method without invoking it.
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(Reflect.getMetadata(GUARDS_METADATA, controller[method])).toEqual([
@@ -60,8 +62,17 @@ describe('CompetitionInvitesController', () => {
   });
 
   it('takes acceptance identity and email only from the session', async () => {
-    await controller.accept('token', user);
-    expect(service.accept).toHaveBeenCalledWith('token', user.id, user.email);
+    await controller.accept('token', user, { confirmed: true, teamName: 'Correct XI' });
+    expect(service.accept).toHaveBeenCalledWith('token', user.id, user.email, true, 'Correct XI');
+    expect(() => controller.accept('token', user, { confirmed: false })).toThrow(BadRequestException);
+  });
+
+  it('uses server identity for declining and authorizes review on the backend', async () => {
+    await controller.decline('token', user);
+    expect(service.decline).toHaveBeenCalledWith('token', user.id, user.email);
+    await controller.resolve(user, id, { approve: true });
+    expect(service.resolveVerification).toHaveBeenCalledWith(id, user.id, true);
+    expect(() => controller.resolve(user, id, { approve: 'yes' })).toThrow(BadRequestException);
   });
 
   it('passes the session identity to list and revoke', async () => {
