@@ -15,7 +15,7 @@ import { TeamsService } from '../teams/teams.service';
 import { sendCompetitionInviteEmail } from '../email/email';
 import { CompetitionInvitesService } from './competition-invites.service';
 
-jest.mock('../email/email', () => ({ sendCompetitionInviteEmail: jest.fn(), sendCompetitionTeamReviewEmail: jest.fn(), sendCompetitionTeamReviewOutcomeEmail: jest.fn() }));
+jest.mock('../email/email', () => ({ sendCompetitionInviteEmail: jest.fn(), sendCompetitionTeamReviewEmail: jest.fn(), sendCompetitionTeamReviewOutcomeEmail: jest.fn(), sendCompetitionRepresentativeCorrectionEmail: jest.fn() }));
 
 // Run the actual Neon Drizzle queries and batch boundaries against embedded
 // PostgreSQL, without a network connection or access to the configured database.
@@ -73,6 +73,8 @@ describe('CompetitionInvitesService (PostgreSQL)', () => {
       create table team_members (id uuid primary key default gen_random_uuid(), team_id uuid not null references teams(id),
         user_id text not null unique references "user"(id), role team_role not null default 'assistant',
         created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+      create table athletes (id uuid primary key default gen_random_uuid(), team_id uuid not null references teams(id),
+        user_id text references "user"(id));
       create table competitions (id uuid primary key default gen_random_uuid(), name text not null,
         type competition_type not null default 'league', admin_user_id text references "user"(id));
       create table competition_teams (id uuid primary key default gen_random_uuid(), competition_id uuid not null references competitions(id),
@@ -91,7 +93,7 @@ describe('CompetitionInvitesService (PostgreSQL)', () => {
     await pg.exec(readFileSync(resolve(__dirname, '../../drizzle/0043_competition_team_verification_columns.sql'), 'utf8'));
     const databaseService = { database: testDatabase(pg) } as DatabaseService;
     teamsService = new TeamsService(databaseService);
-    service = new CompetitionInvitesService(databaseService, teamsService);
+    service = new CompetitionInvitesService(databaseService);
   }, 30000);
 
   afterAll(async () => {
@@ -102,7 +104,7 @@ describe('CompetitionInvitesService (PostgreSQL)', () => {
     jest.restoreAllMocks();
     mail.mockReset().mockResolvedValue(undefined);
     await pg.exec(
-      'truncate competition_invites, competition_teams, competitions, team_members, teams, "user" cascade',
+      'truncate competition_invites, competition_teams, competitions, athletes, team_members, teams, "user" cascade',
     );
     await pg.query(
       'insert into "user" (id, email) values ($1, $2), ($3, $4), ($5, $6)',
@@ -344,13 +346,95 @@ describe('CompetitionInvitesService (PostgreSQL)', () => {
     expect(slot).toEqual({ team_id: teamId, display_name: 'New Registered Name', original_display_name: 'Invited XI' });
   });
 
-  it('rejects an assistant without changing their membership or consuming the invite', async () => {
-    await addTeam('assistant');
+  it('allows an authorized assistant to claim their existing team without elevation', async () => {
+    const assistantTeam = await addTeam('assistant');
     const { token } = await invite();
-    await expect(accept(token, 'coach', email)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    const options = await service.eligibleTeams(token, 'coach', email);
+    expect(options.teams).toEqual([{ id: assistantTeam, name: 'Original club name', role: 'assistant' }]);
+    expect(options.canCreateTeam).toBe(false);
+    expect(await accept(token)).toEqual({ awaitingApproval: true });
+    const [request] = await service.listInvites(competitionId, 'admin');
+    expect(await service.resolveVerification(request.id, 'admin', true)).toEqual({ approved: true });
+    expect((await pg.query("select role, team_id from team_members where user_id='coach'")).rows[0])
+      .toEqual({ role: 'assistant', team_id: assistantTeam });
+    expect((await pg.query('select team_id from competition_teams where id=$1', [slotId])).rows[0])
+      .toEqual({ team_id: assistantTeam });
+  });
+
+  it('allows an assistant to confirm a correctly named participant directly', async () => {
+    const assistantTeam = await addTeam('assistant');
+    await pg.query("update competition_teams set display_name='Original club name' where id=$1", [slotId]);
+    const { token } = await invite();
+    expect(await service.accept(token, 'coach', email, true, undefined, assistantTeam))
+      .toMatchObject({ joined: true, teamId: assistantTeam });
+    expect((await pg.query("select role from team_members where user_id='coach'")).rows[0])
+      .toEqual({ role: 'assistant' });
+  });
+
+  it('shows a player why they cannot connect a team but lets them decline', async () => {
+    const playerTeam = randomUUID();
+    await pg.query('insert into teams (id, name) values ($1, $2)', [playerTeam, 'Player FC']);
+    await pg.query("insert into athletes (team_id, user_id) values ($1, 'coach')", [playerTeam]);
+    const { token } = await invite();
+    expect(await service.eligibleTeams(token, 'coach', email)).toMatchObject({
+      teams: [], playerTeams: [{ teamId: playerTeam, teamName: 'Player FC' }], canCreateTeam: false,
+    });
+    await expect(accept(token)).rejects.toBeInstanceOf(ForbiddenException);
     expect((await invites())[0].status).toBe('pending');
+    expect(await service.decline(token, 'coach', email)).toEqual({ declined: true });
+  });
+
+  it('lets an invited player request a replacement and revokes the old invitation', async () => {
+    const playerTeam = randomUUID();
+    await pg.query('insert into teams (id, name) values ($1, $2)', [playerTeam, 'Player FC']);
+    await pg.query("insert into athletes (team_id, user_id) values ($1, 'coach')", [playerTeam]);
+    const { token } = await invite();
+    expect(await service.requestRepresentativeInvite(token, 'coach', email))
+      .toEqual({ requested: true, emailSent: true });
+    expect((await invites())[0].status).toBe('revoked');
+    expect(await service.preview(token)).toEqual({ valid: false });
+    await expect(service.requestRepresentativeInvite(token, 'coach', email))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect(await service.createInvite(slotId, 'newcoach@example.com', 'admin'))
+      .toMatchObject({ email: 'newcoach@example.com' });
+  });
+
+  it('does not allow an outsider to enumerate invited team memberships', async () => {
+    const { token } = await invite();
+    await expect(service.eligibleTeams(token, 'outsider', 'other@example.com'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects selected teams that do not belong to the invitation recipient', async () => {
+    const existing = await addTeam('assistant');
+    const { token } = await invite();
+    await expect(service.accept(token, 'coach', email, true, undefined, ownerTeamId))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(await service.accept(token, 'coach', email, true, undefined, existing))
+      .toEqual({ awaitingApproval: true });
+  });
+
+  it('requires an explicit choice if the schema later permits multiple team memberships', async () => {
+    const first = await addTeam();
+    const second = randomUUID();
+    await pg.exec('alter table team_members drop constraint team_members_user_id_key');
+    try {
+      await pg.query("insert into teams (id, name) values ($1, 'Second club')", [second]);
+      await pg.query("insert into team_members (team_id, user_id, role) values ($1, 'coach', 'assistant')", [second]);
+      const { token } = await invite();
+      await expect(accept(token)).rejects.toBeInstanceOf(ConflictException);
+      expect((await service.eligibleTeams(token, 'coach', email)).teams.map(t => t.id).sort())
+        .toEqual([first, second].sort());
+      expect(await service.accept(token, 'coach', email, true, undefined, second))
+        .toEqual({ awaitingApproval: true });
+      const [request] = await service.listInvites(competitionId, 'admin');
+      expect(await service.resolveVerification(request.id, 'admin', true))
+        .toEqual({ approved: true });
+      expect((await pg.query('select team_id from competition_teams where id=$1', [slotId])).rows[0])
+        .toEqual({ team_id: second });
+    } finally {
+      await pg.exec('alter table team_members add constraint team_members_user_id_key unique (user_id)');
+    }
   });
 
   it('rejects duplicate real-team participation without consuming the invite', async () => {
@@ -430,11 +514,11 @@ describe('CompetitionInvitesService (PostgreSQL)', () => {
       const { token } = await invite();
       const [row] = await invites();
       jest
-        .spyOn(teamsService, 'findTeamForUser')
+        .spyOn(service, 'eligibleTeams')
         .mockImplementationOnce(async () => {
           if (action === 'revoke') await service.revokeInvite(row.id, 'admin');
           else await invite();
-          return null;
+          return { teams: [], playerTeams: [], canCreateTeam: true, awaitingApproval: false };
         });
       await expect(
         accept(token, 'coach', email),

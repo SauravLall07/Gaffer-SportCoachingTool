@@ -65,6 +65,20 @@ export class CompetitionInvitesController {
     return this.invites.preview(token);
   }
 
+  @Get(':token/eligible-teams')
+  @UseGuards(AuthGuard)
+  eligibleTeams(@Param('token') token: string, @CurrentUser() user: SessionUser) {
+    if (!user.emailVerified) throw new ForbiddenException('Verify your email before responding to an invitation.');
+    return this.invites.eligibleTeams(token, user.id, user.email);
+  }
+
+  @Post(':token/request-representative')
+  @UseGuards(AuthGuard)
+  requestRepresentative(@Param('token') token: string, @CurrentUser() user: SessionUser) {
+    if (!user.emailVerified) throw new ForbiddenException('Verify your email before responding to an invitation.');
+    return this.invites.requestRepresentativeInvite(token, user.id, user.email);
+  }
+
   @Post(':token/decline')
   @UseGuards(AuthGuard)
   decline(@Param('token') token: string, @CurrentUser() user: SessionUser) {
@@ -77,6 +91,6 @@ export class CompetitionInvitesController {
   accept(@Param('token') token: string, @CurrentUser() user: SessionUser, @Body() body: unknown) {
     if (!user.emailVerified) throw new ForbiddenException('Verify your email before responding to an invitation.');
     const input = zodValidate(acceptCompetitionInviteSchema, body);
-    return this.invites.accept(token, user.id, user.email, input.confirmed, input.teamName);
+    return this.invites.accept(token, user.id, user.email, input.confirmed, input.teamName, input.selectedTeamId);
   }
 }

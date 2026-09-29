@@ -349,7 +349,7 @@ function ParticipantRow({
               <Button disabled={inviteDisabled} onClick={() => onResolve(true)}>Approve team</Button>
               <Button variant="outline" disabled={inviteDisabled} onClick={() => onResolve(false)}>Reject</Button>
             </> : <>
-              <Button variant="outline" disabled={inviteDisabled} onClick={onInvite}>{invite ? "Resend" : "Invite coach"}</Button>
+              <Button variant="outline" disabled={inviteDisabled} onClick={onInvite}>{invite ? "Resend" : "Invite representative"}</Button>
               {invite && <Button variant="outline" onClick={onRevoke}>Revoke</Button>}
             </>}
             <Button variant="outline" onClick={onRename}>Edit name</Button>
@@ -695,9 +695,9 @@ function CompetitionDetails({ id }: { id: string }) {
   const manualFixtureByResult = useMemo(() => new Map(fixtures.filter((fixture) => fixture.legacyResultId).map((fixture) => [fixture.legacyResultId!, fixture])), [fixtures]);
 
   const openInvite = (participant: Participant, email?: string) => setAction({
-    title: email ? "Resend invitation" : "Invite coach",
-    description: `Invite a coach for ${participant.displayName}. Issuing an invitation replaces any previous pending link for this team.`,
-    label: "Coach email address", inputType: "email", initialValue: email,
+    title: email ? "Resend invitation" : "Invite representative",
+    description: `Invite a coach or authorized assistant for ${participant.displayName}. Issuing an invitation replaces any previous pending link for this team.`,
+    label: "Representative email address", inputType: "email", initialValue: email,
     confirm: email ? "Resend invitation" : "Send invitation",
     action: (value) => inviteCoach(participant.id, value),
     onSuccess: () => setNotice(`Invitation issued for ${participant.displayName}.`),

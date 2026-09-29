@@ -14,6 +14,9 @@ import {
   classifyCompetitionInviteAcceptError,
   clearPendingCompetitionInviteToken,
   declineCompetitionInvite,
+  eligibleCompetitionTeams,
+  requestCompetitionRepresentativeInvite,
+  type EligibleCompetitionTeams,
   previewCompetitionInvite,
   storePendingCompetitionInviteToken,
   type CompetitionInvitePreview,
@@ -71,7 +74,7 @@ function persistCompetitionInviteFailure(
 /**
  * JoinCompetitionPage — public route at /join-competition/:token.
  *
- * A coach opens this link from a competition invitation.  The page
+ * An invited recipient opens this link from a competition invitation.  The page
  * previews the team name, then offers inline sign-up or sign-in.  On
  * confirmation the invite is accepted and the competitions workspace opens.
  *
@@ -92,7 +95,11 @@ export default function JoinCompetitionPage() {
   const [accepted, setAccepted] = useState(false);
   const [awaitingApproval, setAwaitingApproval] = useState(false);
   const [declined, setDeclined] = useState(false);
+  const [representativeRequested, setRepresentativeRequested] = useState<string | null>(null);
   const [newTeamName, setNewTeamName] = useState("");
+  const [eligible, setEligible] = useState<EligibleCompetitionTeams | null>(null);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState("");
 
   /* ── Auth state ────────────────────────────────────────────────────── */
   const { status: authStatus, user, team, signUp, signIn, signOut, refreshSession } =
@@ -135,6 +142,7 @@ export default function JoinCompetitionPage() {
     setAccepted(false);
     setAwaitingApproval(false);
     setDeclined(false);
+    setRepresentativeRequested(null);
     previewCompetitionInvite(token)
       .then((data) => {
         if (cancelled) return;
@@ -158,6 +166,25 @@ export default function JoinCompetitionPage() {
       cancelled = true;
     };
   }, [token, retryPreview]);
+
+  // Invitation eligibility is private: fetch only once the invited recipient
+  // has authenticated. Never infer authorization from client-side account kind.
+  useEffect(() => {
+    if (!isSignedIn || !user?.emailVerified || !preview?.valid || declined) return;
+    let cancelled = false;
+    setEligibilityLoading(true);
+    setEligible(null);
+    eligibleCompetitionTeams(token).then((response) => {
+      if (cancelled) return;
+      setEligible(response);
+      setSelectedTeamId((previous) =>
+        response.teams.some((t) => t.id === previous) ? previous :
+        response.teams.length === 1 ? response.teams[0].id : "");
+    }).catch((err) => {
+      if (!cancelled) setFormError(err instanceof ApiError ? err.message : "Unable to verify team membership.");
+    }).finally(() => { if (!cancelled) setEligibilityLoading(false); });
+    return () => { cancelled = true; };
+  }, [isSignedIn, user?.id, user?.emailVerified, preview?.valid, token, declined]);
 
   /* ── Validation ────────────────────────────────────────────────────── */
   const validateSignUp = (): boolean => {
@@ -196,10 +223,10 @@ export default function JoinCompetitionPage() {
 
   /* ── Accept the invite after auth is settled ──────────────────────── */
   const doAccept = async () => {
-    if (!user?.emailVerified) return;
+    if (!user?.emailVerified || !eligible || eligible.playerTeams.length > 0 && eligible.teams.length === 0) return;
     try {
       if (!accepted) {
-        const response = await acceptCompetitionInvite(token, team?.id ? undefined : newTeamName.trim());
+        const response = await acceptCompetitionInvite(token, eligible?.canCreateTeam ? newTeamName.trim() : undefined, selectedTeamId || undefined);
         if (response.awaitingApproval) {
           setAwaitingApproval(true);
           clearPendingCompetitionInviteToken(token);
@@ -311,6 +338,22 @@ export default function JoinCompetitionPage() {
     }
   };
 
+  const handleRepresentativeRequest = async () => {
+    if (!window.confirm("Withdraw this invitation and ask the competition administrator to invite a coach or authorized assistant?")) return;
+    setIsSubmitting(true);
+    setFormError(null);
+    try {
+      const result = await requestCompetitionRepresentativeInvite(token);
+      clearPendingCompetitionInviteToken(token);
+      setDeclined(true);
+      setRepresentativeRequested(result.emailSent
+        ? "Your request has been sent to the competition administrator. The original invitation is withdrawn."
+        : "The original invitation was withdrawn, but we could not email the administrator. Please contact them directly.");
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not request a corrected invitation.");
+    } finally { setIsSubmitting(false); }
+  };
+
   /* ── Email-mismatch recovery: sign out, stay on the invite, sign in
    * again with the email the coach actually invited. ────────────────── */
   const handleSignOutAndRetry = async () => {
@@ -384,7 +427,7 @@ export default function JoinCompetitionPage() {
           </div>
 
           {declined ? (
-            <p role="status" className="text-sm">You declined this invitation. Ask the administrator to send a new one if necessary.</p>
+            <p role="status" className="text-sm">{representativeRequested ?? "You declined this invitation. Ask the administrator to send a new one if necessary."}</p>
           ) : awaitingApproval ? (
             <p role="status" className="text-sm leading-relaxed text-muted-foreground">
               Your team verification request was submitted. The competition administrator must approve
@@ -393,13 +436,34 @@ export default function JoinCompetitionPage() {
           ) : (
             <div className="w-full space-y-3 text-left text-sm">
               <p>Confirm that the invitation for <strong>{teamName}</strong> is intended for your team.</p>
-              {team?.id ? (
-                <p>Your registered Gaffer team: <strong>{team.name}</strong>
-                  {team.name.trim().toLocaleLowerCase() !== teamName.trim().toLocaleLowerCase()
-                    ? " — the names differ, so the competition administrator will need to approve the connection."
-                    : " — the names match."}
-                </p>
-              ) : (
+              {eligibilityLoading && <p role="status">Checking your team membership…</p>}
+              {eligible && eligible.teams.length > 0 ? (
+                <div className="space-y-2">
+                  <label htmlFor="competition-team-choice" className="block font-semibold">
+                    Select the team you are authorized to represent
+                  </label>
+                  <select id="competition-team-choice" required className="w-full rounded-md border border-border bg-background px-3 py-2"
+                    value={selectedTeamId} onChange={(event) => setSelectedTeamId(event.target.value)}>
+                    {eligible.teams.length > 1 && <option value="">Choose your team…</option>}
+                    {eligible.teams.map((candidate) => <option key={candidate.id} value={candidate.id}>
+                      {candidate.name} ({candidate.role === "assistant" ? "Assistant coach" : "Coach"})
+                    </option>)}
+                  </select>
+                  {eligible.teams.filter(candidate => candidate.id === selectedTeamId).map(candidate =>
+                    <p key={candidate.id}>Your Gaffer team: <strong>{candidate.name}</strong>
+                      {candidate.name.trim().toLocaleLowerCase() !== teamName.trim().toLocaleLowerCase()
+                        ? " — the names differ, so the competition administrator must approve the connection."
+                        : " — the names match. Please still confirm that this invitation is for your team."}
+                    </p>)}
+                  <p>Accepting does not change your existing team permissions.</p>
+                </div>
+              ) : eligible && eligible.playerTeams.length > 0 ? (
+                <div role="status" className="space-y-2 rounded-lg border border-border p-3">
+                  <p>This invitation is intended for your team. A coach or authorized assistant must accept it.</p>
+                  <p>Your registered player team{eligible.playerTeams.length > 1 ? "s" : ""}: {eligible.playerTeams.map(t => t.teamName).join(", ")}</p>
+                  <p>You can decline, or ask the competition administrator to invite an authorized representative.</p>
+                </div>
+              ) : eligible?.canCreateTeam ? (
                 <label className="block space-y-2">Create your Gaffer team with this name:
                   <input className="w-full rounded-md border border-border bg-background px-3 py-2"
                     maxLength={100} required value={newTeamName}
@@ -407,7 +471,7 @@ export default function JoinCompetitionPage() {
                   <span className="block text-xs text-muted-foreground">Review or correct the proposed name.
                     Changes require administrator verification.</span>
                 </label>
-              )}
+              ) : null}
               <p>Not your team? Do not accept. Ask the administrator to correct the invitation.</p>
             </div>
           )}
@@ -438,15 +502,21 @@ export default function JoinCompetitionPage() {
           )}
 
           {!user?.emailVerified && <Button variant="outline" onClick={() => navigate("/verify-email", { state: { email: user?.email, inviteToken: token, inviteKind: "competition" } })}>Verify your email to accept</Button>}
-          {!awaitingApproval && !declined && <form onSubmit={(e) => void handleAlreadySignedInAccept(e)} className="w-full">
+          {!awaitingApproval && !declined && eligible && (eligible.teams.length > 0 || eligible.canCreateTeam) && <form onSubmit={(e) => void handleAlreadySignedInAccept(e)} className="w-full">
             <Button
               type="submit"
-              disabled={isSubmitting || !user?.emailVerified || (!team?.id && !newTeamName.trim())}
+              disabled={isSubmitting || !user?.emailVerified || eligibilityLoading || !eligible || (eligible.teams.length > 0 ? !selectedTeamId : !eligible.canCreateTeam || !newTeamName.trim())}
               className="w-full"
             >
               {isSubmitting ? "Submitting…" : accepted ? "Refresh membership" : "Confirm this is my team"}
             </Button>
           </form>}
+          {!declined && eligible?.playerTeams.length && eligible.teams.length === 0 && (
+            <Button type="button" variant="secondary" disabled={isSubmitting || !user?.emailVerified}
+              onClick={() => void handleRepresentativeRequest()}>
+              Ask admin to invite a coach or assistant
+            </Button>
+          )}
           {!declined && <Button type="button" variant="outline" disabled={isSubmitting || !user?.emailVerified}
             onClick={() => void handleDecline()}>
             {awaitingApproval ? "Withdraw verification request" : "This isn't my team — decline"}
@@ -469,7 +539,7 @@ export default function JoinCompetitionPage() {
             <p className="text-sm text-muted-foreground">Team: {teamName}</p>
           <p className="mt-2 text-sm text-muted-foreground">
             {viewMode === "sign-up"
-              ? "Create your account to join as a coach."
+              ? "Create an account to review this invitation."
               : "Sign in to accept the competition invite."}
           </p>
         </div>

@@ -11,10 +11,12 @@ import {
   competitions,
   competitionTeams,
   competitionInvites,
+  teamMembers,
+  teams,
+  athletes,
   user,
 } from '../database/schema';
-import { sendCompetitionInviteEmail, sendCompetitionTeamReviewEmail, sendCompetitionTeamReviewOutcomeEmail } from '../email/email';
-import { TeamsService } from '../teams/teams.service';
+import { sendCompetitionInviteEmail, sendCompetitionTeamReviewEmail, sendCompetitionTeamReviewOutcomeEmail, sendCompetitionRepresentativeCorrectionEmail } from '../email/email';
 import {
   competitionInviteTokenSchema,
   createCompetitionInviteSchema,
@@ -30,7 +32,6 @@ const invalidInvite = () =>
 export class CompetitionInvitesService {
   constructor(
     private readonly databaseService: DatabaseService,
-    private readonly teamsService: TeamsService,
   ) {}
 
   async createInvite(
@@ -208,8 +209,30 @@ export class CompetitionInvitesService {
     };
   }
 
-  /** Explicit coach confirmation; name disagreements are reviewed by the admin. */
-  async accept(token: string, userId: string, email: string, confirmed: true, teamName?: string) {
+  /** Only the invited address may inspect its possible connections. Team IDs
+   * come from server-side memberships; claimed athletes never grant authority. */
+  async eligibleTeams(token: string, userId: string, email: string) {
+    const found = await this.findValidInvite(token);
+    if (!found || found.teamId) throw invalidInvite();
+    if (found.invite.email.trim().toLowerCase() !== email.trim().toLowerCase())
+      throw new ForbiddenException('This invite was issued to a different email address.');
+    const db = this.databaseService.database;
+    const memberships = await db.select({ id: teams.id, name: teams.name, role: teamMembers.role })
+      .from(teamMembers).innerJoin(teams, eq(teams.id, teamMembers.teamId))
+      .where(eq(teamMembers.userId, userId));
+    const playerTeams = await db.select({ teamId: athletes.teamId, teamName: teams.name })
+      .from(athletes).innerJoin(teams, eq(teams.id, athletes.teamId))
+      .where(eq(athletes.userId, userId));
+    return {
+      teams: memberships,
+      playerTeams: playerTeams.filter(p => !memberships.some(m => m.id === p.teamId)),
+      canCreateTeam: memberships.length === 0 && playerTeams.length === 0,
+      awaitingApproval: found.invite.status === 'verification',
+    };
+  }
+
+  /** Explicit representative confirmation; name disagreements are reviewed by the admin. */
+  async accept(token: string, userId: string, email: string, confirmed: true, teamName?: string, selectedTeamId?: string) {
     if (confirmed !== true) throw new ForbiddenException('Confirm the team before accepting.');
     const found = await this.findValidInvite(token);
     if (!found) throw invalidInvite();
@@ -221,9 +244,16 @@ export class CompetitionInvitesService {
       if (found.invite.requestedByUserId === userId) return { awaitingApproval: true };
       throw new ConflictException('This participant is awaiting administrator verification.');
     }
-    const existing = await this.teamsService.findTeamForUser(userId);
-    if (existing && existing.role !== 'coach')
-      throw new ForbiddenException('Only coaches can claim a participant slot.');
+    const options = await this.eligibleTeams(token, userId, email);
+    if (options.teams.length > 1 && !selectedTeamId)
+      throw new ConflictException('Select the team you are authorized to represent.');
+    const existing = selectedTeamId
+      ? options.teams.find(t => t.id === selectedTeamId)
+      : options.teams[0];
+    if (selectedTeamId && !existing)
+      throw new ForbiddenException('You are not an authorized representative of this team.');
+    if (!existing && !options.canCreateTeam)
+      throw new ForbiddenException('Players cannot connect teams to competitions. Ask the administrator to invite an authorized coach or assistant.');
     const proposedName = existing?.name ?? teamName?.trim();
     if (!proposedName) throw new ConflictException('Enter your team name before accepting.');
     const mismatch = proposedName.toLocaleLowerCase() !== found.teamName.trim().toLocaleLowerCase();
@@ -238,9 +268,16 @@ export class CompetitionInvitesService {
             from competition_invites i join competition_teams ct on ct.id = i.competition_team_id and ct.competition_id = i.competition_id
             where i.token_hash = ${hashToken(token)} and i.status = 'pending'
               and i.expires_at > clock_timestamp() and lower(trim(i.email)) = ${email} and ct.team_id is null
-              and not exists (select 1 from team_members m where m.user_id = ${userId} and m.role <> 'coach')
-              and not exists (select 1 from competition_teams other join team_members m on m.team_id = other.team_id
-                where other.competition_id = ct.competition_id and m.user_id = ${userId})
+              and ((${existing?.id ?? null}::uuid is not null and exists (
+                select 1 from team_members m where m.user_id = ${userId} and m.team_id = ${existing?.id ?? null}::uuid))
+                or (${existing?.id ?? null}::uuid is null and not exists (
+                  select 1 from team_members m where m.user_id = ${userId})
+                  and not exists (select 1 from athletes a where a.user_id = ${userId})))
+              and not exists (select 1 from competition_teams other
+                where other.competition_id = ct.competition_id and other.team_id = ${existing?.id ?? null}::uuid)
+              and (${existing?.id ?? null}::uuid is not null or not exists (
+                select 1 from competition_teams other join team_members m on m.team_id = other.team_id
+                where other.competition_id = ct.competition_id and m.user_id = ${userId}))
               and not exists (select 1 from competition_invites v where v.competition_id = ct.competition_id
                 and v.status = 'verification' and v.requested_by_user_id = ${userId})
               and not exists (select 1 from competition_invites v where v.competition_id = ct.competition_id
@@ -261,7 +298,7 @@ export class CompetitionInvitesService {
             select id, ${userId}, 'coach' from new_team returning team_id
           ), resolved_team as (
             select team_id from new_member
-            union all select team_id from team_members where user_id = ${userId} and role = 'coach'
+            union all select team_id from team_members where user_id = ${userId} and team_id = ${existing?.id ?? null}::uuid
           ), linked as (
             update competition_teams ct set team_id = rt.team_id, original_display_name = ct.display_name,
               display_name = ${proposedName}, updated_at = now()
@@ -300,6 +337,44 @@ export class CompetitionInvitesService {
     }
   }
 
+  /** A player can ask the administrator for a corrected invitation without
+   * being allowed to claim the participant. Revoke under the same slot lock as
+   * other invitation transitions to make retries idempotently fail. */
+  async requestRepresentativeInvite(token: string, userId: string, email: string) {
+    const found = await this.findValidInvite(token);
+    if (!found || found.teamId || found.invite.status !== 'pending') throw invalidInvite();
+    const eligible = await this.eligibleTeams(token, userId, email);
+    if (eligible.teams.length || !eligible.playerTeams.length)
+      throw new ForbiddenException('Only invited players can request an authorized representative invitation.');
+    const db = this.databaseService.database;
+    const [, result] = await db.batch([
+      db.execute(sql`select id from competition_teams where id = ${found.invite.competitionTeamId}::uuid for update`),
+      db.execute(sql`update competition_invites i set status = 'revoked', updated_at = now()
+        where i.id = ${found.invite.id}::uuid and i.status = 'pending' and i.expires_at > clock_timestamp()
+          and lower(trim(i.email)) = ${email.trim().toLowerCase()}
+          and exists (select 1 from athletes a where a.user_id = ${userId})
+          and not exists (select 1 from team_members m where m.user_id = ${userId})
+        returning i.id`),
+    ]);
+    if (!result.rows.length) throw new ConflictException('This invitation is no longer available.');
+    const [admin] = await db.select({ email: user.email })
+      .from(competitions).innerJoin(user, eq(competitions.adminUserId, user.id))
+      .where(eq(competitions.id, found.invite.competitionId)).limit(1);
+    if (!admin?.email) return { requested: true, emailSent: false };
+    try {
+      await sendCompetitionRepresentativeCorrectionEmail({
+        to: admin.email, competitionName: found.competitionName,
+        teamName: found.teamName, recipientEmail: found.invite.email,
+        url: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/competitions/${found.invite.competitionId}`,
+      });
+      return { requested: true, emailSent: true };
+    } catch {
+      // The original link has been revoked for safety; provide an honest
+      // delivery result instead of claiming that the admin was notified.
+      return { requested: true, emailSent: false };
+    }
+  }
+
   /** A recipient may decline a pending invite or withdraw their own review request. */
   async decline(token: string, userId: string, email: string) {
     const found = await this.findValidInvite(token);
@@ -307,7 +382,7 @@ export class CompetitionInvitesService {
     if (found.invite.email.trim().toLowerCase() !== email.trim().toLowerCase())
       throw new ForbiddenException('This invite was issued to a different email address.');
     if (found.invite.status === 'verification' && found.invite.requestedByUserId !== userId)
-      throw new ForbiddenException('Only the requesting coach can withdraw a verification request.');
+      throw new ForbiddenException('Only the requesting representative can withdraw a verification request.');
     const [, result] = await this.databaseService.database.batch([
       this.databaseService.database.execute(sql`select id from competition_teams where id = ${found.invite.competitionTeamId}::uuid for update`),
       this.databaseService.database.execute(sql`update competition_invites set status = 'revoked', updated_at = now()
@@ -352,14 +427,18 @@ export class CompetitionInvitesService {
             join competitions c on c.id = ct.competition_id
             where i.id = ${inviteId}::uuid and i.status = 'verification' and c.admin_user_id = ${adminId}
               and ct.team_id is null and i.proposed_name is not null and i.requested_by_user_id is not null
-              and not exists (select 1 from team_members m where m.user_id = i.requested_by_user_id and m.role <> 'coach')
-              and not exists (select 1 from competition_teams other join team_members m on m.team_id = other.team_id
-                where other.competition_id = ct.competition_id and m.user_id = i.requested_by_user_id)
+              and (i.proposed_team_id is not null or not exists (
+                select 1 from athletes a where a.user_id = i.requested_by_user_id))
+              and not exists (select 1 from competition_teams other
+                where other.competition_id = ct.competition_id and other.team_id = i.proposed_team_id)
+              and (i.proposed_team_id is not null or not exists (
+                select 1 from competition_teams other join team_members m on m.team_id = other.team_id
+                where other.competition_id = ct.competition_id and m.user_id = i.requested_by_user_id))
               and not exists (select 1 from competition_teams other where other.competition_id = ct.competition_id
                 and other.id <> ct.id and lower(other.display_name) = lower(i.proposed_name))
               and (i.proposed_team_id is null and not exists (select 1 from team_members m where m.user_id = i.requested_by_user_id)
                 or i.proposed_team_id is not null and exists (select 1 from team_members m join teams t on t.id = m.team_id
-                  where m.user_id = i.requested_by_user_id and m.role = 'coach' and m.team_id = i.proposed_team_id
+                  where m.user_id = i.requested_by_user_id and m.team_id = i.proposed_team_id
                     and lower(t.name) = lower(i.proposed_name)))
           ), new_team as (
             insert into teams (name) select proposed_name from eligible where proposed_team_id is null returning id

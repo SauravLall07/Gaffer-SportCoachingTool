@@ -12,4 +12,5 @@ export const createCompetitionInviteSchema = createTeamInviteSchema.extend({
 export const acceptCompetitionInviteSchema = z.object({
   confirmed: z.literal(true),
   teamName: z.string().trim().min(1).max(100).optional(),
+  selectedTeamId: z.uuid().optional(),
 });
