@@ -765,7 +765,9 @@ export const competitionInvites = pgTable(
       .where(sql`${table.status} in ('pending', 'verification')`),
     uniqueIndex('competition_invites_verification_team_unique')
       .on(table.competitionId, table.proposedTeamId)
-      .where(sql`${table.status} = 'verification' and ${table.proposedTeamId} is not null`),
+      .where(
+        sql`${table.status} = 'verification' and ${table.proposedTeamId} is not null`,
+      ),
     uniqueIndex('competition_invites_verification_user_unique')
       .on(table.competitionId, table.requestedByUserId)
       .where(sql`${table.status} = 'verification'`),

@@ -201,15 +201,24 @@ export function __resetEmailClientForTests(): void {
 
 /** Name discrepancies are reviewed by the competition administrator. */
 export async function sendCompetitionTeamReviewEmail(input: {
-  to: string; competitionName: string; invitedName: string; proposedName: string; url: string;
+  to: string;
+  competitionName: string;
+  invitedName: string;
+  proposedName: string;
+  url: string;
 }): Promise<void> {
   const brevo = getClient();
   if (!brevo) {
-    logger.warn(`Competition team review requested: ${input.to} / ${input.competitionName} / ${input.invitedName} -> ${input.proposedName} / ${input.url}`);
+    logger.warn(
+      `Competition team review requested: ${input.to} / ${input.competitionName} / ${input.invitedName} -> ${input.proposedName} / ${input.url}`,
+    );
     return;
   }
   await brevo.transactionalEmails.sendTransacEmail({
-    sender: { name: process.env.EMAIL_FROM_NAME ?? 'SportCoachingTool', email: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.com' },
+    sender: {
+      name: process.env.EMAIL_FROM_NAME ?? 'SportCoachingTool',
+      email: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.com',
+    },
     to: [{ email: input.to }],
     subject: 'Team verification required for your competition',
     htmlContent: `<p>A team representative has requested to represent ${escapeHtml(input.proposedName)} in ${escapeHtml(input.competitionName)}.</p>
@@ -219,17 +228,28 @@ export async function sendCompetitionTeamReviewEmail(input: {
 }
 
 export async function sendCompetitionTeamReviewOutcomeEmail(input: {
-  to: string; competitionName: string; teamName: string; approved: boolean; url: string;
+  to: string;
+  competitionName: string;
+  teamName: string;
+  approved: boolean;
+  url: string;
 }): Promise<void> {
   const brevo = getClient();
   if (!brevo) {
-    logger.warn(`Competition team verification ${input.approved ? 'approved' : 'rejected'}: ${input.to} / ${input.competitionName}`);
+    logger.warn(
+      `Competition team verification ${input.approved ? 'approved' : 'rejected'}: ${input.to} / ${input.competitionName}`,
+    );
     return;
   }
   await brevo.transactionalEmails.sendTransacEmail({
-    sender: { name: process.env.EMAIL_FROM_NAME ?? 'SportCoachingTool', email: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.com' },
+    sender: {
+      name: process.env.EMAIL_FROM_NAME ?? 'SportCoachingTool',
+      email: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.com',
+    },
     to: [{ email: input.to }],
-    subject: input.approved ? 'Your competition team has been approved' : 'Your competition team verification was declined',
+    subject: input.approved
+      ? 'Your competition team has been approved'
+      : 'Your competition team verification was declined',
     htmlContent: `<p>Your verification request for ${escapeHtml(input.teamName)} in ${escapeHtml(input.competitionName)}
       has been ${input.approved ? 'approved' : 'declined'} by the competition administrator.</p>
       <p><a href="${escapeHtml(input.url)}">Open Gaffer</a></p>`,
@@ -240,15 +260,24 @@ export async function sendCompetitionTeamReviewOutcomeEmail(input: {
  * the invitation to a coach or authorized assistant without exposing the
  * administrator's address on a public or player-visible response. */
 export async function sendCompetitionRepresentativeCorrectionEmail(input: {
-  to: string; competitionName: string; teamName: string; recipientEmail: string; url: string;
+  to: string;
+  competitionName: string;
+  teamName: string;
+  recipientEmail: string;
+  url: string;
 }): Promise<void> {
   const brevo = getClient();
   if (!brevo) {
-    logger.warn(`Representative re-invitation requested: ${input.to} / ${input.competitionName} / ${input.teamName} / ${input.recipientEmail}`);
+    logger.warn(
+      `Representative re-invitation requested: ${input.to} / ${input.competitionName} / ${input.teamName} / ${input.recipientEmail}`,
+    );
     return;
   }
   await brevo.transactionalEmails.sendTransacEmail({
-    sender: { name: process.env.EMAIL_FROM_NAME ?? 'SportCoachingTool', email: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.com' },
+    sender: {
+      name: process.env.EMAIL_FROM_NAME ?? 'SportCoachingTool',
+      email: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.com',
+    },
     to: [{ email: input.to }],
     subject: 'Action needed: re-invite an authorized team representative',
     htmlContent: `<p>The recipient ${escapeHtml(input.recipientEmail)} is a player and cannot connect

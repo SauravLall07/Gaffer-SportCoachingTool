@@ -434,18 +434,40 @@ export class CompetitionsService {
   }
 
   /** Correct only unlinked participant labels; never mutate the registered team. */
-  async renameParticipant(userId: string, competitionId: string, slotId: string, dto: CreateCompetitionTeamDto) {
+  async renameParticipant(
+    userId: string,
+    competitionId: string,
+    slotId: string,
+    dto: CreateCompetitionTeamDto,
+  ) {
     await this.requireAdmin(userId, competitionId);
     try {
-      const [row] = await this.databaseService.database.update(competitionTeams)
+      const [row] = await this.databaseService.database
+        .update(competitionTeams)
         .set({ displayName: dto.displayName, updatedAt: new Date() })
-        .where(and(eq(competitionTeams.id, slotId), eq(competitionTeams.competitionId, competitionId),
-          sql`${competitionTeams.teamId} is null`))
+        .where(
+          and(
+            eq(competitionTeams.id, slotId),
+            eq(competitionTeams.competitionId, competitionId),
+            sql`${competitionTeams.teamId} is null`,
+          ),
+        )
         .returning();
-      if (!row) throw new ConflictException('Only existing unlinked participants can be renamed.');
-      return { id: row.id, displayName: row.displayName, teamId: row.teamId, createdAt: row.createdAt };
+      if (!row)
+        throw new ConflictException(
+          'Only existing unlinked participants can be renamed.',
+        );
+      return {
+        id: row.id,
+        displayName: row.displayName,
+        teamId: row.teamId,
+        createdAt: row.createdAt,
+      };
     } catch (error) {
-      if (isUniqueViolation(error)) throw new ConflictException('Another participant already uses that name.');
+      if (isUniqueViolation(error))
+        throw new ConflictException(
+          'Another participant already uses that name.',
+        );
       this.rethrowFixtureGuard(error);
       throw error;
     }

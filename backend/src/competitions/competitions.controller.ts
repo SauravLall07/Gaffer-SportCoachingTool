@@ -197,7 +197,12 @@ export class CompetitionsController {
     @Body() body: unknown,
   ) {
     const dto = zodValidate(renameCompetitionTeamSchema, body);
-    return this.competitionsService.renameParticipant(user.id, id, competitionTeamId, dto);
+    return this.competitionsService.renameParticipant(
+      user.id,
+      id,
+      competitionTeamId,
+      dto,
+    );
   }
 
   @Delete(':id/teams/:competitionTeamId')

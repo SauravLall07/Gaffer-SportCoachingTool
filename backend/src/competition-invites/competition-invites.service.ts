@@ -16,7 +16,12 @@ import {
   athletes,
   user,
 } from '../database/schema';
-import { sendCompetitionInviteEmail, sendCompetitionTeamReviewEmail, sendCompetitionTeamReviewOutcomeEmail, sendCompetitionRepresentativeCorrectionEmail } from '../email/email';
+import {
+  sendCompetitionInviteEmail,
+  sendCompetitionTeamReviewEmail,
+  sendCompetitionTeamReviewOutcomeEmail,
+  sendCompetitionRepresentativeCorrectionEmail,
+} from '../email/email';
 import {
   competitionInviteTokenSchema,
   createCompetitionInviteSchema,
@@ -30,9 +35,7 @@ const invalidInvite = () =>
 
 @Injectable()
 export class CompetitionInvitesService {
-  constructor(
-    private readonly databaseService: DatabaseService,
-  ) {}
+  constructor(private readonly databaseService: DatabaseService) {}
 
   async createInvite(
     competitionTeamId: string,
@@ -65,10 +68,20 @@ export class CompetitionInvitesService {
         'This participant is already linked to a team.',
       );
 
-    const [verification] = await db.select({ id: competitionInvites.id })
-      .from(competitionInvites).where(and(eq(competitionInvites.competitionTeamId, competitionTeamId),
-        eq(competitionInvites.status, 'verification'))).limit(1);
-    if (verification) throw new ConflictException('Resolve the outstanding team verification before resending an invitation.');
+    const [verification] = await db
+      .select({ id: competitionInvites.id })
+      .from(competitionInvites)
+      .where(
+        and(
+          eq(competitionInvites.competitionTeamId, competitionTeamId),
+          eq(competitionInvites.status, 'verification'),
+        ),
+      )
+      .limit(1);
+    if (verification)
+      throw new ConflictException(
+        'Resolve the outstanding team verification before resending an invitation.',
+      );
 
     const token = randomBytes(32).toString('base64url');
     const tokenHash = hashToken(token);
@@ -191,8 +204,10 @@ export class CompetitionInvitesService {
     if (
       !row ||
       row.competitionType === 'friendly' ||
-      (row.invite.status !== 'pending' && row.invite.status !== 'verification') ||
-      (row.invite.status === 'pending' && row.invite.expiresAt.getTime() <= Date.now())
+      (row.invite.status !== 'pending' &&
+        row.invite.status !== 'verification') ||
+      (row.invite.status === 'pending' &&
+        row.invite.expiresAt.getTime() <= Date.now())
     )
       return null;
     return row;
@@ -215,52 +230,86 @@ export class CompetitionInvitesService {
     const found = await this.findValidInvite(token);
     if (!found || found.teamId) throw invalidInvite();
     if (found.invite.email.trim().toLowerCase() !== email.trim().toLowerCase())
-      throw new ForbiddenException('This invite was issued to a different email address.');
+      throw new ForbiddenException(
+        'This invite was issued to a different email address.',
+      );
     const db = this.databaseService.database;
-    const memberships = await db.select({ id: teams.id, name: teams.name, role: teamMembers.role })
-      .from(teamMembers).innerJoin(teams, eq(teams.id, teamMembers.teamId))
+    const memberships = await db
+      .select({ id: teams.id, name: teams.name, role: teamMembers.role })
+      .from(teamMembers)
+      .innerJoin(teams, eq(teams.id, teamMembers.teamId))
       .where(eq(teamMembers.userId, userId));
-    const playerTeams = await db.select({ teamId: athletes.teamId, teamName: teams.name })
-      .from(athletes).innerJoin(teams, eq(teams.id, athletes.teamId))
+    const playerTeams = await db
+      .select({ teamId: athletes.teamId, teamName: teams.name })
+      .from(athletes)
+      .innerJoin(teams, eq(teams.id, athletes.teamId))
       .where(eq(athletes.userId, userId));
     if (memberships.length > 1)
-      throw new ConflictException('This account has multiple team memberships. Contact support.');
+      throw new ConflictException(
+        'This account has multiple team memberships. Contact support.',
+      );
     return {
       teams: memberships,
-      playerTeams: playerTeams.filter(p => !memberships.some(m => m.id === p.teamId)),
+      playerTeams: playerTeams.filter(
+        (p) => !memberships.some((m) => m.id === p.teamId),
+      ),
       canCreateTeam: memberships.length === 0 && playerTeams.length === 0,
       awaitingApproval: found.invite.status === 'verification',
     };
   }
 
   /** Explicit representative confirmation; name disagreements are reviewed by the admin. */
-  async accept(token: string, userId: string, email: string, confirmed: true, teamName?: string) {
-    if (confirmed !== true) throw new ForbiddenException('Confirm the team before accepting.');
+  async accept(
+    token: string,
+    userId: string,
+    email: string,
+    confirmed: true,
+    teamName?: string,
+  ) {
+    if (confirmed !== true)
+      throw new ForbiddenException('Confirm the team before accepting.');
     const found = await this.findValidInvite(token);
     if (!found) throw invalidInvite();
     email = email.trim().toLowerCase();
     if (found.invite.email.trim().toLowerCase() !== email)
-      throw new ForbiddenException('This invite was issued to a different email address.');
-    if (found.teamId) throw new ConflictException('This participant is already linked to a team.');
+      throw new ForbiddenException(
+        'This invite was issued to a different email address.',
+      );
+    if (found.teamId)
+      throw new ConflictException(
+        'This participant is already linked to a team.',
+      );
     if (found.invite.status === 'verification') {
-      if (found.invite.requestedByUserId === userId) return { awaitingApproval: true };
-      throw new ConflictException('This participant is awaiting administrator verification.');
+      if (found.invite.requestedByUserId === userId)
+        return { awaitingApproval: true };
+      throw new ConflictException(
+        'This participant is awaiting administrator verification.',
+      );
     }
     const options = await this.eligibleTeams(token, userId, email);
     // Gaffer supports only one team membership per account. Fail closed if
     // inconsistent data is encountered instead of choosing an arbitrary team.
     if (options.teams.length > 1)
-      throw new ConflictException('This account has multiple team memberships. Contact support.');
+      throw new ConflictException(
+        'This account has multiple team memberships. Contact support.',
+      );
     const existing = options.teams[0];
     if (!existing && !options.canCreateTeam)
-      throw new ForbiddenException('Players cannot connect teams to competitions. Ask the administrator to invite an authorized coach or assistant.');
+      throw new ForbiddenException(
+        'Players cannot connect teams to competitions. Ask the administrator to invite an authorized coach or assistant.',
+      );
     const proposedName = existing?.name ?? teamName?.trim();
-    if (!proposedName) throw new ConflictException('Enter your team name before accepting.');
-    const mismatch = proposedName.toLocaleLowerCase() !== found.teamName.trim().toLocaleLowerCase();
+    if (!proposedName)
+      throw new ConflictException('Enter your team name before accepting.');
+    const mismatch =
+      proposedName.toLocaleLowerCase() !==
+      found.teamName.trim().toLocaleLowerCase();
     const db = this.databaseService.database;
     try {
       const [, , result] = await db.batch([
-        db.execute(sql`select id from competition_teams where id = ${found.invite.competitionTeamId}::uuid for update`),
+        db.execute(
+          sql`select id from competition_teams where id = ${found.invite.competitionTeamId}::uuid for update`,
+        ),
         db.execute(sql`select id from "user" where id = ${userId} for update`),
         db.execute(sql`
           with eligible as materialized (
@@ -315,24 +364,48 @@ export class CompetitionInvitesService {
             (select competition_id from used limit 1) as "competitionId"
         `),
       ]);
-      const row = result.rows[0] as { requestId: string | null; teamId: string | null; competitionId: string | null } | undefined;
+      const row = result.rows[0] as
+        | {
+            requestId: string | null;
+            teamId: string | null;
+            competitionId: string | null;
+          }
+        | undefined;
       if (row?.requestId) {
         try {
-          const [admin] = await db.select({ email: user.email })
-            .from(competitions).innerJoin(user, eq(competitions.adminUserId, user.id))
-            .where(eq(competitions.id, found.invite.competitionId)).limit(1);
-          if (admin?.email) await sendCompetitionTeamReviewEmail({
-              to: admin.email, competitionName: found.competitionName,
-              invitedName: found.teamName, proposedName,
+          const [admin] = await db
+            .select({ email: user.email })
+            .from(competitions)
+            .innerJoin(user, eq(competitions.adminUserId, user.id))
+            .where(eq(competitions.id, found.invite.competitionId))
+            .limit(1);
+          if (admin?.email)
+            await sendCompetitionTeamReviewEmail({
+              to: admin.email,
+              competitionName: found.competitionName,
+              invitedName: found.teamName,
+              proposedName,
               url: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/competitions/${found.invite.competitionId}`,
             });
-        } catch { /* The dashboard still shows the persisted review request. */ }
+        } catch {
+          /* The dashboard still shows the persisted review request. */
+        }
         return { awaitingApproval: true };
       }
-      if (!row?.teamId) throw new ConflictException('This invitation or team is no longer available, or the team name conflicts with another participant.');
-      return { joined: true, teamId: row.teamId, competitionId: row.competitionId };
+      if (!row?.teamId)
+        throw new ConflictException(
+          'This invitation or team is no longer available, or the team name conflicts with another participant.',
+        );
+      return {
+        joined: true,
+        teamId: row.teamId,
+        competitionId: row.competitionId,
+      };
     } catch (error: unknown) {
-      if (this.isUniqueViolation(error)) throw new ConflictException('This account or team already participates, or the team name conflicts.');
+      if (this.isUniqueViolation(error))
+        throw new ConflictException(
+          'This account or team already participates, or the team name conflicts.',
+        );
       throw error;
     }
   }
@@ -340,15 +413,24 @@ export class CompetitionInvitesService {
   /** A player can ask the administrator for a corrected invitation without
    * being allowed to claim the participant. Revoke under the same slot lock as
    * other invitation transitions to make retries idempotently fail. */
-  async requestRepresentativeInvite(token: string, userId: string, email: string) {
+  async requestRepresentativeInvite(
+    token: string,
+    userId: string,
+    email: string,
+  ) {
     const found = await this.findValidInvite(token);
-    if (!found || found.teamId || found.invite.status !== 'pending') throw invalidInvite();
+    if (!found || found.teamId || found.invite.status !== 'pending')
+      throw invalidInvite();
     const eligible = await this.eligibleTeams(token, userId, email);
     if (eligible.teams.length || !eligible.playerTeams.length)
-      throw new ForbiddenException('Only invited players can request an authorized representative invitation.');
+      throw new ForbiddenException(
+        'Only invited players can request an authorized representative invitation.',
+      );
     const db = this.databaseService.database;
     const [, result] = await db.batch([
-      db.execute(sql`select id from competition_teams where id = ${found.invite.competitionTeamId}::uuid for update`),
+      db.execute(
+        sql`select id from competition_teams where id = ${found.invite.competitionTeamId}::uuid for update`,
+      ),
       db.execute(sql`update competition_invites i set status = 'revoked', updated_at = now()
         where i.id = ${found.invite.id}::uuid and i.status = 'pending' and i.expires_at > clock_timestamp()
           and lower(trim(i.email)) = ${email.trim().toLowerCase()}
@@ -356,15 +438,21 @@ export class CompetitionInvitesService {
           and not exists (select 1 from team_members m where m.user_id = ${userId})
         returning i.id`),
     ]);
-    if (!result.rows.length) throw new ConflictException('This invitation is no longer available.');
-    const [admin] = await db.select({ email: user.email })
-      .from(competitions).innerJoin(user, eq(competitions.adminUserId, user.id))
-      .where(eq(competitions.id, found.invite.competitionId)).limit(1);
+    if (!result.rows.length)
+      throw new ConflictException('This invitation is no longer available.');
+    const [admin] = await db
+      .select({ email: user.email })
+      .from(competitions)
+      .innerJoin(user, eq(competitions.adminUserId, user.id))
+      .where(eq(competitions.id, found.invite.competitionId))
+      .limit(1);
     if (!admin?.email) return { requested: true, emailSent: false };
     try {
       await sendCompetitionRepresentativeCorrectionEmail({
-        to: admin.email, competitionName: found.competitionName,
-        teamName: found.teamName, recipientEmail: found.invite.email,
+        to: admin.email,
+        competitionName: found.competitionName,
+        teamName: found.teamName,
+        recipientEmail: found.invite.email,
         url: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/competitions/${found.invite.competitionId}`,
       });
       return { requested: true, emailSent: true };
@@ -380,46 +468,80 @@ export class CompetitionInvitesService {
     const found = await this.findValidInvite(token);
     if (!found) throw invalidInvite();
     if (found.invite.email.trim().toLowerCase() !== email.trim().toLowerCase())
-      throw new ForbiddenException('This invite was issued to a different email address.');
-    if (found.invite.status === 'verification' && found.invite.requestedByUserId !== userId)
-      throw new ForbiddenException('Only the requesting representative can withdraw a verification request.');
+      throw new ForbiddenException(
+        'This invite was issued to a different email address.',
+      );
+    if (
+      found.invite.status === 'verification' &&
+      found.invite.requestedByUserId !== userId
+    )
+      throw new ForbiddenException(
+        'Only the requesting representative can withdraw a verification request.',
+      );
     const [, result] = await this.databaseService.database.batch([
-      this.databaseService.database.execute(sql`select id from competition_teams where id = ${found.invite.competitionTeamId}::uuid for update`),
-      this.databaseService.database.execute(sql`update competition_invites set status = 'revoked', updated_at = now()
+      this.databaseService.database.execute(
+        sql`select id from competition_teams where id = ${found.invite.competitionTeamId}::uuid for update`,
+      ),
+      this.databaseService.database
+        .execute(sql`update competition_invites set status = 'revoked', updated_at = now()
         where id = ${found.invite.id}::uuid and status in ('pending', 'verification')
           and (status = 'pending' or requested_by_user_id = ${userId}) returning id`),
     ]);
-    if (!result.rows.length) throw new ConflictException('This invitation is no longer available.');
+    if (!result.rows.length)
+      throw new ConflictException('This invitation is no longer available.');
     return { declined: true };
   }
 
   /** Admin approval is the only path for mismatched names. Revalidate team ownership
    * and competition membership under locks; never trust the earlier proposal alone. */
-  async resolveVerification(inviteId: string, adminId: string, approve: boolean) {
+  async resolveVerification(
+    inviteId: string,
+    adminId: string,
+    approve: boolean,
+  ) {
     const db = this.databaseService.database;
-    const [request] = await db.select({
-      slotId: competitionInvites.competitionTeamId,
-      requestedBy: competitionInvites.requestedByUserId,
-      status: competitionInvites.status,
-      adminUserId: competitions.adminUserId,
-    }).from(competitionInvites).innerJoin(competitions, eq(competitionInvites.competitionId, competitions.id))
-      .where(eq(competitionInvites.id, inviteId)).limit(1);
-    if (!request || request.adminUserId !== adminId || request.status !== 'verification' || !request.requestedBy)
+    const [request] = await db
+      .select({
+        slotId: competitionInvites.competitionTeamId,
+        requestedBy: competitionInvites.requestedByUserId,
+        status: competitionInvites.status,
+        adminUserId: competitions.adminUserId,
+      })
+      .from(competitionInvites)
+      .innerJoin(
+        competitions,
+        eq(competitionInvites.competitionId, competitions.id),
+      )
+      .where(eq(competitionInvites.id, inviteId))
+      .limit(1);
+    if (
+      !request ||
+      request.adminUserId !== adminId ||
+      request.status !== 'verification' ||
+      !request.requestedBy
+    )
       throw new NotFoundException('Verification request not found.');
     if (!approve) {
       const [, result] = await db.batch([
-        db.execute(sql`select id from competition_teams where id = ${request.slotId}::uuid for update`),
+        db.execute(
+          sql`select id from competition_teams where id = ${request.slotId}::uuid for update`,
+        ),
         db.execute(sql`update competition_invites set status = 'revoked', updated_at = now()
           where id = ${inviteId}::uuid and status = 'verification' returning id`),
       ]);
-      if (!result.rows.length) throw new ConflictException('Verification was already resolved.');
+      if (!result.rows.length)
+        throw new ConflictException('Verification was already resolved.');
       await this.emailReviewOutcome(inviteId, false);
       return { rejected: true };
     }
     try {
       const [, , result] = await db.batch([
-        db.execute(sql`select id from competition_teams where id = ${request.slotId}::uuid for update`),
-        db.execute(sql`select id from "user" where id = ${request.requestedBy} for update`),
+        db.execute(
+          sql`select id from competition_teams where id = ${request.slotId}::uuid for update`,
+        ),
+        db.execute(
+          sql`select id from "user" where id = ${request.requestedBy} for update`,
+        ),
         db.execute(sql`
           with eligible as materialized (
             select i.id, i.proposed_name, i.proposed_team_id, i.requested_by_user_id, ct.id as slot_id, ct.competition_id
@@ -460,33 +582,57 @@ export class CompetitionInvitesService {
           returning l.team_id as "teamId", l.competition_id as "competitionId"
         `),
       ]);
-      if (!result.rows.length) throw new ConflictException('Verification cannot be completed. Check team membership and name conflicts.');
+      if (!result.rows.length)
+        throw new ConflictException(
+          'Verification cannot be completed. Check team membership and name conflicts.',
+        );
       await this.emailReviewOutcome(inviteId, true);
       return { approved: true };
     } catch (error: unknown) {
-      if (this.isUniqueViolation(error)) throw new ConflictException('This team already participates or its name conflicts.');
+      if (this.isUniqueViolation(error))
+        throw new ConflictException(
+          'This team already participates or its name conflicts.',
+        );
       throw error;
     }
   }
 
   private async emailReviewOutcome(inviteId: string, approved: boolean) {
     try {
-      const [row] = await this.databaseService.database.select({
-        to: competitionInvites.email,
-        name: competitionInvites.proposedName,
-        competitionName: competitions.name,
-        competitionId: competitions.id,
-      }).from(competitionInvites).innerJoin(competitions, eq(competitionInvites.competitionId, competitions.id))
-        .where(eq(competitionInvites.id, inviteId)).limit(1);
-      if (row?.name) await sendCompetitionTeamReviewOutcomeEmail({
-        to: row.to, competitionName: row.competitionName, teamName: row.name, approved,
-        url: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/competitions/${row.competitionId}`,
-      });
-    } catch { /* Review completion remains committed even if mail delivery fails. */ }
+      const [row] = await this.databaseService.database
+        .select({
+          to: competitionInvites.email,
+          name: competitionInvites.proposedName,
+          competitionName: competitions.name,
+          competitionId: competitions.id,
+        })
+        .from(competitionInvites)
+        .innerJoin(
+          competitions,
+          eq(competitionInvites.competitionId, competitions.id),
+        )
+        .where(eq(competitionInvites.id, inviteId))
+        .limit(1);
+      if (row?.name)
+        await sendCompetitionTeamReviewOutcomeEmail({
+          to: row.to,
+          competitionName: row.competitionName,
+          teamName: row.name,
+          approved,
+          url: `${process.env.FRONTEND_URL ?? 'http://localhost:5173'}/competitions/${row.competitionId}`,
+        });
+    } catch {
+      /* Review completion remains committed even if mail delivery fails. */
+    }
   }
 
   private isUniqueViolation(error: unknown) {
-    return [error, (error as { cause?: unknown })?.cause].some((e) =>
-      typeof e === 'object' && e !== null && 'code' in e && e.code === '23505');
+    return [error, (error as { cause?: unknown })?.cause].some(
+      (e) =>
+        typeof e === 'object' &&
+        e !== null &&
+        'code' in e &&
+        e.code === '23505',
+    );
   }
 }

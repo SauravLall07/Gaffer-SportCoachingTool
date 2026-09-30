@@ -188,21 +188,52 @@ export class TeamsService {
     try {
       if (input.name !== undefined) {
         await this.databaseService.database.batch([
-          this.databaseService.database.update(teams).set({ name: input.name, ...(input.primaryColor !== undefined ? { primaryColor: input.primaryColor } : {}), updatedAt: new Date() }).where(eq(teams.id, existing.id)).returning(),
+          this.databaseService.database
+            .update(teams)
+            .set({
+              name: input.name,
+              ...(input.primaryColor !== undefined
+                ? { primaryColor: input.primaryColor }
+                : {}),
+              updatedAt: new Date(),
+            })
+            .where(eq(teams.id, existing.id))
+            .returning(),
           this.databaseService.database.execute(sql`update competition_teams
             set original_display_name = coalesce(original_display_name, display_name),
               display_name = ${input.name}, updated_at = now()
             where team_id = ${existing.id}::uuid returning id`),
         ]);
-        const [fresh] = await this.databaseService.database.select().from(teams).where(eq(teams.id, existing.id)).limit(1);
+        const [fresh] = await this.databaseService.database
+          .select()
+          .from(teams)
+          .where(eq(teams.id, existing.id))
+          .limit(1);
         team = fresh;
       } else {
-        [team] = await this.databaseService.database.update(teams)
-          .set({ ...(input.primaryColor !== undefined ? { primaryColor: input.primaryColor } : {}), updatedAt: new Date() })
-          .where(eq(teams.id, existing.id)).returning();
+        [team] = await this.databaseService.database
+          .update(teams)
+          .set({
+            ...(input.primaryColor !== undefined
+              ? { primaryColor: input.primaryColor }
+              : {}),
+            updatedAt: new Date(),
+          })
+          .where(eq(teams.id, existing.id))
+          .returning();
       }
     } catch (error) {
-      if (isUniqueViolation(error) || (error && typeof error === 'object' && 'cause' in error && isUniqueViolation(error.cause))) throw new ConflictException('The team name conflicts with another competition participant.');
+      const cause =
+        error && typeof error === 'object' && 'cause' in error
+          ? (error as { cause?: unknown }).cause
+          : undefined;
+
+      if (isUniqueViolation(error) || isUniqueViolation(cause)) {
+        throw new ConflictException(
+          'The team name conflicts with another competition participant.',
+        );
+      }
+
       throw error;
     }
 

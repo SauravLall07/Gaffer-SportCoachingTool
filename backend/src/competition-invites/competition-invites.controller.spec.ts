@@ -35,7 +35,16 @@ describe('CompetitionInvitesController', () => {
   });
 
   it('protects all mutations and listing with the existing AuthGuard; preview stays public', () => {
-    for (const method of ['create', 'list', 'revoke', 'accept', 'decline', 'resolve', 'eligibleTeams', 'requestRepresentative'] as const) {
+    for (const method of [
+      'create',
+      'list',
+      'revoke',
+      'accept',
+      'decline',
+      'resolve',
+      'eligibleTeams',
+      'requestRepresentative',
+    ] as const) {
       // Inspect decorator metadata on the original method without invoking it.
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(Reflect.getMetadata(GUARDS_METADATA, controller[method])).toEqual([
@@ -64,19 +73,38 @@ describe('CompetitionInvitesController', () => {
   });
 
   it('takes acceptance identity and email only from the session', async () => {
-    await controller.accept('token', user, { confirmed: true, teamName: 'Correct XI' });
-    expect(service.accept).toHaveBeenCalledWith('token', user.id, user.email, true, 'Correct XI');
-    expect(() => controller.accept('token', user, { confirmed: false })).toThrow(BadRequestException);
+    await controller.accept('token', user, {
+      confirmed: true,
+      teamName: 'Correct XI',
+    });
+    expect(service.accept).toHaveBeenCalledWith(
+      'token',
+      user.id,
+      user.email,
+      true,
+      'Correct XI',
+    );
+    expect(() =>
+      controller.accept('token', user, { confirmed: false }),
+    ).toThrow(BadRequestException);
   });
 
   it('uses the session identity for private eligibility', async () => {
     await controller.eligibleTeams('token', user);
-    expect(service.eligibleTeams).toHaveBeenCalledWith('token', user.id, user.email);
+    expect(service.eligibleTeams).toHaveBeenCalledWith(
+      'token',
+      user.id,
+      user.email,
+    );
   });
 
   it('uses server identity for player re-invitation requests', async () => {
     await controller.requestRepresentative('token', user);
-    expect(service.requestRepresentativeInvite).toHaveBeenCalledWith('token', user.id, user.email);
+    expect(service.requestRepresentativeInvite).toHaveBeenCalledWith(
+      'token',
+      user.id,
+      user.email,
+    );
   });
 
   it('uses server identity for declining and authorizes review on the backend', async () => {
@@ -84,7 +112,9 @@ describe('CompetitionInvitesController', () => {
     expect(service.decline).toHaveBeenCalledWith('token', user.id, user.email);
     await controller.resolve(user, id, { approve: true });
     expect(service.resolveVerification).toHaveBeenCalledWith(id, user.id, true);
-    expect(() => controller.resolve(user, id, { approve: 'yes' })).toThrow(BadRequestException);
+    expect(() => controller.resolve(user, id, { approve: 'yes' })).toThrow(
+      BadRequestException,
+    );
   });
 
   it('passes the session identity to list and revoke', async () => {

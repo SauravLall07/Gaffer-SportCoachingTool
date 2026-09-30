@@ -77,9 +77,11 @@ export function calculateCompetitionStandings(
   >();
 
   for (const participant of participants) {
-    const baseline = baselineByName.get(nameKey(participant.displayName))
-      ?? (participant.originalDisplayName
-        ? baselineByName.get(nameKey(participant.originalDisplayName)) : undefined);
+    const baseline =
+      baselineByName.get(nameKey(participant.displayName)) ??
+      (participant.originalDisplayName
+        ? baselineByName.get(nameKey(participant.originalDisplayName))
+        : undefined);
     rows.set(participant.id, {
       id: baseline?.id ?? `participant:${participant.id}`,
       competitionId,
