@@ -1,0 +1,241 @@
+.mobile-nav {
+  --dock-gap: 12px;
+  --dock-height: 78px;
+  position: fixed;
+  z-index: 45;
+  inset-inline: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 1023px) {
+  .app-shell--coach .app-shell-main {
+    padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell--coach .page-header {
+    padding-left: 1rem;
+  }
+}
+
+.mobile-nav__scrim {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  background: color-mix(in srgb, var(--background) 32%, transparent);
+  pointer-events: auto;
+}
+
+.mobile-dock,
+.mobile-more {
+  pointer-events: auto;
+  border: 1px solid color-mix(in srgb, var(--border-default) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 18%),
+    inset 0 1px color-mix(in srgb, var(--surface-card) 65%, transparent);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.mobile-dock {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  width: min(420px, calc(100% - 24px));
+  height: var(--dock-height);
+  margin-inline: auto;
+  margin-bottom: calc(var(--dock-gap) + env(safe-area-inset-bottom, 0px));
+  padding: 5px 4px 4px;
+  border-radius: 27px;
+}
+
+.mobile-dock__item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 22px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.mobile-dock__item:not(.mobile-dock__item--center).is-active {
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+}
+
+.mobile-dock__item:hover:not(.is-disabled) {
+  color: var(--brand);
+}
+
+.mobile-dock__item.is-disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
+.mobile-dock__item:focus-visible,
+.mobile-more__row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.mobile-dock__icon {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+}
+
+.mobile-dock__icon svg {
+  width: 23px;
+  height: 23px;
+  stroke-width: 1.9;
+}
+
+.mobile-dock__label {
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -.025em;
+}
+
+.mobile-dock__item.is-active .mobile-dock__label {
+  font-weight: 700;
+}
+
+.mobile-dock__item--center {
+  justify-content: flex-end;
+  gap: 3px;
+  padding-bottom: 9px;
+  color: var(--text-primary);
+}
+
+.mobile-dock__item--center .mobile-dock__icon {
+  position: absolute;
+  top: -19px;
+  left: 50%;
+  width: 55px;
+  height: 55px;
+  transform: translateX(-50%);
+  border: 2px solid color-mix(in srgb, var(--brand-light) 75%, var(--surface-card));
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--brand-light), var(--brand-dark));
+  color: var(--brand-foreground);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--brand) 35%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--brand) 9%, transparent);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.mobile-dock__item--center .mobile-dock__icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.mobile-dock__item--center:hover .mobile-dock__icon,
+.mobile-dock__item--center.is-active .mobile-dock__icon {
+  transform: translate(-50%, -2px);
+  box-shadow: 0 7px 20px color-mix(in srgb, var(--brand) 45%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--brand) 14%, transparent);
+}
+
+.mobile-more {
+  position: absolute;
+  z-index: 1;
+  right: max(12px, calc((100% - 420px) / 2));
+  bottom: calc(var(--dock-height) + var(--dock-gap) + 22px + env(safe-area-inset-bottom, 0px));
+  width: min(354px, calc(100vw - 24px));
+  max-height: calc(100dvh - 124px - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  border-radius: 24px;
+  padding: 8px;
+  color: var(--text-primary);
+  animation: mobile-more-enter 180ms ease-out;
+}
+
+.mobile-more__links + .mobile-more__links {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.mobile-more__row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 47px;
+  border-radius: 15px;
+  padding: 8px 13px;
+  color: var(--text-primary);
+  text-align: left;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.mobile-more__row > svg:first-child {
+  width: 19px;
+  height: 19px;
+  flex: none;
+  stroke-width: 1.9;
+  color: var(--text-secondary);
+}
+
+.mobile-more__row > span:nth-child(2) { flex: 1; }
+.mobile-more__row:hover,
+.mobile-more__row.is-active { background: var(--surface-hover); }
+.mobile-more__row.is-active,
+.mobile-more__row.is-active > svg:first-child { color: var(--brand); }
+.mobile-more__row.is-disabled { opacity: .42; }
+.mobile-more__chevron { width: 16px; height: 16px; color: var(--text-muted); }
+.mobile-more__row--danger,
+.mobile-more__row--danger > svg:first-child { color: var(--danger); }
+
+.mobile-more__switch {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--surface-active);
+  transition: background-color 180ms ease;
+}
+
+.mobile-more__switch::after {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface-card);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 20%, transparent);
+  transition: transform 180ms ease;
+}
+
+.mobile-more__switch.is-on { background: var(--brand); }
+.mobile-more__switch.is-on::after { transform: translateX(16px); }
+
+@keyframes mobile-more-enter {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-more { animation: none; }
+  .mobile-dock__item,
+  .mobile-dock__item--center .mobile-dock__icon,
+  .mobile-more__row,
+  .mobile-more__switch,
+  .mobile-more__switch::after { transition: none; }
+}
+
+@media print { .mobile-nav { display: none; } }

@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { motion, useReducedMotion } from "motion/react";
 import { listQueuedEvents } from "@/offline/match-store";
 import type { LucideIcon } from "lucide-react";
@@ -296,17 +297,27 @@ export function Sidebar({ className, variant }: SidebarProps) {
         {sidebarContent}
       </motion.aside>
 
-      {/* ── Mobile toggle button ──────────────────────────────────────────── */}
-      <button
+      {resolvedVariant === "coach" && (
+        <MobileBottomNav
+          hasTeam={Boolean(team)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onProfile={() => setIsProfileOpen(true)}
+          onSignOut={() => void handleSignOut()}
+        />
+      )}
+
+      {/* Player routes retain their existing mobile navigation. */}
+      {resolvedVariant === "player" && <button
         onClick={() => setIsMobileOpen(true)}
         className="fixed left-4 top-4 z-40 rounded-lg border border-border-subtle bg-surface-elevated p-2 shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
         aria-label="Open navigation menu"
       >
         <Menu className="size-5 text-foreground" aria-hidden="true" />
-      </button>
+      </button>}
 
       {/* ── Mobile sidebar overlay ────────────────────────────────────────── */}
-      {isMobileOpen && (
+      {resolvedVariant === "player" && isMobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           {/* Backdrop */}
           <div
