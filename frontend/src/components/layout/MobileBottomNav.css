@@ -49,7 +49,8 @@
   margin-inline: auto;
   margin-bottom: calc(var(--dock-gap) + env(safe-area-inset-bottom, 0px));
   padding: 5px 4px 4px;
-  border-radius: 27px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
 }
 
 .mobile-dock__item {
@@ -64,11 +65,43 @@
   border-radius: 22px;
   color: var(--text-muted);
   text-decoration: none;
-  transition: color 180ms ease, background-color 180ms ease;
+  isolation: isolate;
+  transition: color 180ms ease, transform 180ms ease;
 }
 
-.mobile-dock__item:hover:not(.is-disabled) {
-  color: var(--brand);
+.mobile-dock__item::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px 2px;
+  border: 1px solid color-mix(in srgb, var(--surface-card) 52%, transparent);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--surface-card) 42%, transparent);
+  box-shadow: inset 0 1px color-mix(in srgb, white 36%, transparent),
+    0 3px 12px color-mix(in srgb, var(--foreground) 9%, transparent);
+  opacity: 0;
+  content: "";
+  pointer-events: none;
+  backdrop-filter: blur(12px) saturate(145%);
+  -webkit-backdrop-filter: blur(12px) saturate(145%);
+  transform: scale(.88);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.mobile-dock__item > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mobile-dock__item:hover:not(.is-disabled) {
+    color: var(--brand);
+    transform: translateY(-2px);
+  }
+
+  .mobile-dock__item:hover:not(.is-disabled)::before {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .mobile-dock__item.is-disabled {
@@ -225,6 +258,7 @@
 @media (prefers-reduced-motion: reduce) {
   .mobile-more { animation: none; }
   .mobile-dock__item,
+  .mobile-dock__item::before,
   .mobile-dock__item--center .mobile-dock__icon,
   .mobile-more__row,
   .mobile-more__switch,
