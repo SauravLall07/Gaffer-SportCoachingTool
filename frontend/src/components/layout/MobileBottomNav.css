@@ -67,11 +67,6 @@
   transition: color 180ms ease, background-color 180ms ease;
 }
 
-.mobile-dock__item:not(.mobile-dock__item--center).is-active {
-  color: var(--brand);
-  background: color-mix(in srgb, var(--brand) 10%, transparent);
-}
-
 .mobile-dock__item:hover:not(.is-disabled) {
   color: var(--brand);
 }
@@ -112,39 +107,37 @@
   font-weight: 700;
 }
 
-.mobile-dock__item--center {
+.mobile-dock__item.is-active {
   justify-content: flex-end;
   gap: 3px;
   padding-bottom: 9px;
   color: var(--text-primary);
 }
 
-.mobile-dock__item--center .mobile-dock__icon {
+.mobile-dock__item.is-active .mobile-dock__icon {
   position: absolute;
-  top: -19px;
+  top: -23px;
   left: 50%;
-  width: 55px;
-  height: 55px;
+  width: 58px;
+  height: 58px;
   transform: translateX(-50%);
-  border: 2px solid color-mix(in srgb, var(--brand-light) 75%, var(--surface-card));
+  border: 4px solid var(--brand);
   border-radius: 50%;
-  background: linear-gradient(150deg, var(--brand-light), var(--brand-dark));
-  color: var(--brand-foreground);
-  box-shadow: 0 5px 16px color-mix(in srgb, var(--brand) 35%, transparent),
-    0 0 0 5px color-mix(in srgb, var(--brand) 9%, transparent);
+  background: var(--surface-card);
+  color: var(--brand);
+  box-shadow: 0 0 0 5px var(--surface-card);
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
-.mobile-dock__item--center .mobile-dock__icon svg {
-  width: 26px;
-  height: 26px;
+.mobile-dock__item.is-active .mobile-dock__icon svg {
+  width: 31px;
+  height: 31px;
 }
 
-.mobile-dock__item--center:hover .mobile-dock__icon,
-.mobile-dock__item--center.is-active .mobile-dock__icon {
+.mobile-dock__item.is-active:hover .mobile-dock__icon {
   transform: translate(-50%, -2px);
-  box-shadow: 0 7px 20px color-mix(in srgb, var(--brand) 45%, transparent),
-    0 0 0 5px color-mix(in srgb, var(--brand) 14%, transparent);
+  box-shadow: 0 0 0 5px var(--surface-card),
+    0 5px 16px color-mix(in srgb, var(--brand) 25%, transparent);
 }
 
 .mobile-more {
