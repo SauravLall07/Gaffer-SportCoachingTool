@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatEventTime } from "./calendar-utils";
 import { displayEventStatus, eventTypeLabel } from "./event-utils";
 import { getEventTypeStyle, pillAriaLabel } from "./event-style";
+import { VenueAttribution } from "./VenueAttribution";
 import type { TeamEvent } from "./types";
 
 interface EventPillProps {
@@ -136,6 +137,7 @@ export function EventPill({ event, now, onSelect }: EventPillProps) {
               <div className="flex items-center gap-2">
                 <MapPin className="size-3.5 shrink-0 text-foreground/70" />
                 <span className="truncate">{event.location}</span>
+                <VenueAttribution source={event.venueSource} compact />
               </div>
             )}
 

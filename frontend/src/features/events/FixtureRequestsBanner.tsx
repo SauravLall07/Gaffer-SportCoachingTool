@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { formatEventDateTime } from "./event-utils";
+import { VenueAttribution } from "./VenueAttribution";
 import {
   useAcceptFriendlyFixture,
   useDeclineFriendlyFixture,
@@ -85,6 +86,7 @@ export function FixtureRequestsBanner() {
                   : "Date to be confirmed"}
                 {request.location ? ` · ${request.location}` : ""}
               </p>
+              <VenueAttribution source={request.venueSource} compact />
               {request.notes && (
                 <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                   {request.notes}

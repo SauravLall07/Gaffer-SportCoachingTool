@@ -37,7 +37,16 @@ const timezoneSchema = z
     { message: 'Enter a valid IANA timezone such as Africa/Johannesburg.' },
   );
 
+const eventVenueTagsSchema = z.object({
+  format: z.enum(['5', '7', '9', '11']).optional(),
+  surface: z.enum(['grass', 'astro', 'indoor']).optional(),
+  setting: z.enum(['indoor', 'outdoor']).optional(),
+}).nullable().optional();
+
 const venueFieldsSchema = z.object({
+  venueId: z.uuid().nullable().optional(),
+  venueSource: z.enum(['geoapify', 'custom']).nullable().optional(),
+  venueTags: eventVenueTagsSchema,
   venueAddress: z.string().trim().max(300).nullable().optional(),
   weatherLocation: z.string().trim().max(300).nullable().optional(),
   weatherLatitude: z.number().min(-90).max(90).nullable().optional(),

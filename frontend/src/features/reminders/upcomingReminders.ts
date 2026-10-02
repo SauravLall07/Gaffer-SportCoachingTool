@@ -10,6 +10,7 @@ export interface ReminderEvent {
   type: "match" | "training" | "meeting";
   scheduledAt: string;
   location?: string;
+  venueSource?: 'geoapify' | 'custom' | null;
   /** When present, only `scheduled` events produce reminders. */
   status?: "scheduled" | "cancelled" | "completed";
   /** Generated competition fixtures stay visible in the calendar while their

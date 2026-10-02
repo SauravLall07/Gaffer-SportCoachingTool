@@ -12,6 +12,7 @@ import {
 import { displayEventStatus, eventTypeLabel } from "./event-utils";
 import { getEventTypeStyle } from "./event-style";
 import type { TeamEvent } from "./types";
+import { VenueAttribution } from "./VenueAttribution";
 
 interface WeekViewProps {
   /** Any date inside the week being displayed. */
@@ -182,6 +183,7 @@ function WeekEventCard({
         <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
           <MapPin className="size-3 shrink-0" aria-hidden="true" />
           <span className="truncate">{event.location}</span>
+          <VenueAttribution source={event.venueSource} compact />
         </span>
       )}
     </button>

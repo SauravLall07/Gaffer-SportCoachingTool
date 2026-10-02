@@ -28,6 +28,7 @@ import { getEventTypeStyle } from "./event-style";
 import { MatchCompetitionSelect } from "./MatchCompetitionSelect";
 import type { MatchCompetitionFilter } from "./match-competition-filter";
 import type { EventType, TeamEvent } from "./types";
+import { VenueAttribution } from "./VenueAttribution";
 
 interface MobileCalendarViewProps {
   view: CalendarView;
@@ -566,6 +567,7 @@ function MobileEventCard({
             <span className="flex items-center gap-1 truncate">
               <MapPin className="size-3.5 shrink-0 text-foreground/70" />
               <span className="truncate max-w-[120px]">{event.location}</span>
+              <VenueAttribution source={event.venueSource} compact />
             </span>
           )}
           {cancelled && <span className="font-semibold text-destructive">Cancelled</span>}

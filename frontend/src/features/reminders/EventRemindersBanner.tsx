@@ -7,6 +7,7 @@ import {
   getUpcomingReminders,
   type ReminderEvent,
 } from "./upcomingReminders";
+import { VenueAttribution } from "@/features/events/VenueAttribution";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -86,6 +87,7 @@ export function EventRemindersBanner({ events }: { events: ReminderEvent[] }) {
                   <span className="flex items-center gap-1">
                     <MapPin className="size-3" aria-hidden="true" />
                     {event.location}
+                    <VenueAttribution source={event.venueSource} compact />
                   </span>
                 )}
               </div>

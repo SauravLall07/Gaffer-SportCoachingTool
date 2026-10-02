@@ -15,6 +15,7 @@ import { AddTeamModal } from "@/components/AddTeamModal";
 import { EventRemindersBanner } from "@/features/reminders/EventRemindersBanner";
 import { EventWeatherCard } from "@/features/events/EventWeatherCard";
 import { EventDetailDialog } from "@/features/events/EventDetailDialog";
+import { VenueAttribution } from "@/features/events/VenueAttribution";
 import { useEvent, useNow } from "@/features/events/hooks";
 import {
   Activity,
@@ -75,6 +76,7 @@ interface UpcomingEvent {
   type: "match" | "training" | "meeting";
   scheduledAt: string;
   location: string;
+  venueSource?: 'geoapify' | 'custom' | null;
   venueAddress: string | null;
   weatherLocation: string | null;
   weatherLatitude: number | null;
@@ -547,6 +549,7 @@ function EventItem({
         {destination && (
           <div className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
             <span>{event.location || event.venueAddress}</span>
+            <VenueAttribution source={event.venueSource} compact />
             <span aria-hidden="true">·</span>
             <a
               className="font-medium text-primary hover:underline"

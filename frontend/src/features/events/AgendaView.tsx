@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { formatEventTime, formatMonthYear, getMonthEvents, toDayKey } from "./calendar-utils";
 import { displayEventStatus, eventTypeLabel } from "./event-utils";
 import { getEventTypeStyle } from "./event-style";
+import { VenueAttribution } from "./VenueAttribution";
 import type { TeamEvent } from "./types";
 
 interface AgendaViewProps {
@@ -214,6 +215,7 @@ function AgendaEventRow({
                   <span className="flex items-center gap-1 truncate">
                     <MapPin className="size-3 shrink-0" aria-hidden="true" />
                     <span className="max-w-[100px] truncate">{event.location}</span>
+                    <VenueAttribution source={event.venueSource} compact />
                   </span>
                 )}
               </div>

@@ -14,6 +14,7 @@ export interface TeamSummary {
   name: string;
   role: (typeof teamMembers.role.enumValues)[number];
   primaryColor: string | null;
+  countryCode: string | null;
 }
 
 /** Postgres unique-constraint violation — the race-condition backstop for
@@ -45,6 +46,7 @@ export class TeamsService {
         name: teams.name,
         role: teamMembers.role,
         primaryColor: teams.primaryColor,
+        countryCode: teams.countryCode,
       })
       .from(teamMembers)
       .innerJoin(teams, eq(teamMembers.teamId, teams.id))
@@ -170,6 +172,7 @@ export class TeamsService {
       name: team.name,
       role: 'coach',
       primaryColor: team.primaryColor,
+      countryCode: team.countryCode,
     };
   }
 
@@ -195,6 +198,9 @@ export class TeamsService {
               ...(input.primaryColor !== undefined
                 ? { primaryColor: input.primaryColor }
                 : {}),
+              ...(input.countryCode !== undefined
+                ? { countryCode: input.countryCode }
+                : {}),
               updatedAt: new Date(),
             })
             .where(eq(teams.id, existing.id))
@@ -216,6 +222,9 @@ export class TeamsService {
           .set({
             ...(input.primaryColor !== undefined
               ? { primaryColor: input.primaryColor }
+              : {}),
+            ...(input.countryCode !== undefined
+              ? { countryCode: input.countryCode }
               : {}),
             updatedAt: new Date(),
           })
@@ -246,6 +255,7 @@ export class TeamsService {
       name: team.name,
       role: existing.role,
       primaryColor: team.primaryColor,
+      countryCode: team.countryCode,
     };
   }
 }

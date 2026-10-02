@@ -21,6 +21,9 @@ export interface TeamEvent {
   status: EventStatus;
   scheduledAt: string;
   location: string;
+  venueId?: string | null;
+  venueSource?: 'geoapify' | 'custom' | null;
+  venueTags?: VenueTags | null;
   venueAddress: string | null;
   weatherLocation: string | null;
   weatherLatitude: number | null;
@@ -61,6 +64,9 @@ export interface CreateEventInput {
   type: EventType;
   scheduledAt: string;
   location?: string;
+  venueId?: string | null;
+  venueSource?: 'geoapify' | 'custom' | null;
+  venueTags?: VenueTags | null;
   venueAddress?: string | null;
   weatherLocation?: string | null;
   weatherLatitude?: number | null;
@@ -81,6 +87,9 @@ export interface UpdateEventInput {
   status?: EventStatus;
   scheduledAt?: string;
   location?: string;
+  venueId?: string | null;
+  venueSource?: 'geoapify' | 'custom' | null;
+  venueTags?: VenueTags | null;
   venueAddress?: string | null;
   weatherLocation?: string | null;
   weatherLatitude?: number | null;
@@ -91,13 +100,37 @@ export interface UpdateEventInput {
   friendlyOpponentTeamId?: string | null;
 }
 
-export interface LocationSearchResult {
+export interface VenueTags {
+  format?: '5' | '7' | '9' | '11';
+  surface?: 'grass' | 'astro' | 'indoor';
+  setting?: 'indoor' | 'outdoor';
+}
+
+export interface TeamVenue {
   id: string;
   name: string;
-  displayName: string;
-  latitude: number;
-  longitude: number;
-  timezone: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string | null;
+  tags: VenueTags | null;
+  source: 'geoapify' | 'custom';
+  externalId: string | null;
+  lastUsedAt: string | null;
+}
+
+export interface VenueSearchResult {
+  id: string;
+  name: string;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distanceMeters?: number;
+}
+
+export interface VenueLookupResponse {
+  results: VenueSearchResult[];
+  unavailableReason: string | null;
 }
 
 export type WeatherStatus =

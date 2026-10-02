@@ -26,6 +26,12 @@ export const updateTeamSchema = z
       .max(100, 'Team name must be 100 characters or fewer.')
       .optional(),
     primaryColor: hexColorSchema.nullable().optional(),
+    countryCode: z
+      .string()
+      .regex(/^[A-Za-z]{2}$/, 'Country must be a 2-letter ISO code.')
+      .transform((value) => value.toLowerCase())
+      .nullable()
+      .optional(),
   })
   .refine(
     (value) => Object.values(value).some((field) => field !== undefined),

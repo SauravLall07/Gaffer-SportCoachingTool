@@ -9,6 +9,7 @@ export interface IncomingFriendlyFixture {
   eventId: string | null;
   scheduledAt: string | null;
   location: string | null;
+  venueSource: 'geoapify' | 'custom' | null;
   notes: string | null;
   createdAt: string;
 }

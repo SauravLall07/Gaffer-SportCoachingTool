@@ -119,7 +119,51 @@ export const teams = pgTable('teams', {
   // Club kit colour; used as the default for each match's own-team colour
   // and overridable per fixture (away kits / clashes).
   primaryColor: text('primary_color'),
+  countryCode: text('country_code'),
   ...timestamps,
+});
+
+export type VenueTags = {
+  format?: '5' | '7' | '9' | '11';
+  surface?: 'grass' | 'astro' | 'indoor';
+  setting?: 'indoor' | 'outdoor';
+};
+
+export const venues = pgTable(
+  'venues',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    teamId: uuid('team_id')
+      .notNull()
+      .references(() => teams.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    address: text('address'),
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
+    notes: text('notes'),
+    tags: jsonb('tags').$type<VenueTags | null>(),
+    source: text('source').default('custom').notNull(),
+    externalId: text('external_id'),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index('venues_team_id_index').on(table.teamId),
+    index('venues_team_last_used_index').on(table.teamId, table.lastUsedAt),
+    uniqueIndex('venues_team_source_external_unique').on(
+      table.teamId,
+      table.source,
+      table.externalId,
+    ),
+  ],
+);
+
+/** One atomic shared credit reservation per day across backend instances. */
+export const geoapifyDailyUsage = pgTable('geoapify_daily_usage', {
+  usageDate: date('usage_date', { mode: 'string' }).primaryKey(),
+  searchCredits: integer('search_credits').default(0).notNull(),
+  nearbyCredits: integer('nearby_credits').default(0).notNull(),
+  reverseCredits: integer('reverse_credits').default(0).notNull(),
 });
 
 export const teamMembers = pgTable(
@@ -415,6 +459,11 @@ export const events = pgTable(
     status: eventStatus('status').default('scheduled').notNull(),
     scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
     location: text('location').notNull(),
+    venueId: uuid('venue_id').references(() => venues.id, {
+      onDelete: 'set null',
+    }),
+    venueSource: text('venue_source'),
+    venueTags: jsonb('venue_tags').$type<VenueTags | null>(),
     venueAddress: text('venue_address'),
     weatherLocation: text('weather_location'),
     // Keep the original column names from migration 0018 while exposing their

@@ -25,6 +25,7 @@ export interface IncomingFriendlyFixture {
   eventId: string | null;
   scheduledAt: Date | null;
   location: string | null;
+  venueSource: string | null;
   notes: string | null;
   createdAt: Date;
 }
@@ -96,6 +97,7 @@ export class FriendlyFixturesService {
         eventId: events.id,
         scheduledAt: events.scheduledAt,
         location: events.location,
+        venueSource: events.venueSource,
         notes: events.notes,
         createdAt: friendlyFixtures.createdAt,
       })

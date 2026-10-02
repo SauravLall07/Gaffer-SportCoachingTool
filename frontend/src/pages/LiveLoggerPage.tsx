@@ -17,6 +17,7 @@ import {
   formatLocalDate,
 } from "@/features/events/event-utils";
 import { useEvents } from "@/features/events/hooks";
+import { VenueAttribution } from "@/features/events/VenueAttribution";
 import type { EventStatus, TeamEvent } from "@/features/events/types";
 import { cn } from "@/lib/utils";
 import "./LiveLoggerPage.css";
@@ -214,6 +215,7 @@ function MatchRow({
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="size-3.5 shrink-0" />
             {event.location}
+            <VenueAttribution source={event.venueSource} compact />
           </span>
         )}
       </div>

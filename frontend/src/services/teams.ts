@@ -7,6 +7,13 @@ export interface GafferTeamSearchResult {
   primaryColor: string | null;
 }
 
+export async function updateTeamCountryCode(countryCode: string | null) {
+  return apiFetch<{ team: { countryCode: string | null } }>('/teams', {
+    method: 'PATCH',
+    body: JSON.stringify({ countryCode }),
+  });
+}
+
 /**
  * GET /teams/search?q= — finds other Gaffer teams by team name or the
  * team's coach account name for the friendly-fixture opponent picker. The

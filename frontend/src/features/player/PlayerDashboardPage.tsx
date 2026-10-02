@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { EventRemindersBanner } from "@/features/reminders/EventRemindersBanner";
 import { fetchPlayerMe, fetchPlayerEvents } from "@/services/player";
 import type { PlayerEvent } from "@/services/player";
+import { VenueAttribution } from "@/features/events/VenueAttribution";
 
 /* ═══════════════════════════════════════════════════════════════════════════
  *  FORMATTING HELPERS
@@ -242,6 +243,7 @@ function EventItem({ event }: { event: PlayerEvent }) {
             <span className="flex items-center gap-1">
               <MapPin className="size-3" aria-hidden="true" />
               {event.location}
+              <VenueAttribution source={event.venueSource} compact />
             </span>
           )}
         </div>

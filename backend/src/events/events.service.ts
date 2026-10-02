@@ -32,6 +32,7 @@ import {
   matches,
   opponentMatchPlayers,
   teams,
+  venues,
 } from '../database/schema';
 import {
   FriendlyFixturesService,
@@ -49,6 +50,7 @@ import type {
   StartMatchDto,
   UpdateEventDto,
 } from './events.schemas';
+import { mapVenueToEventFields } from './venue-event-mapping';
 
 /**
  * CRUD for a coach's team events. Every query is scoped to the team returned
@@ -66,6 +68,9 @@ export class EventsService {
 
   async create(userId: string, dto: CreateEventDto) {
     const team = await this.requireTeam(userId);
+    const selectedVenue = dto.venueId
+      ? await this.requireTeamVenue(team.id, dto.venueId)
+      : null;
     const competitionId = dto.type === 'match' ? dto.competitionId : null;
     if (competitionId) {
       await this.requireTeamCompetition(team.id, competitionId);
@@ -102,17 +107,20 @@ export class EventsService {
           title: dto.title,
           type: dto.type,
           scheduledAt: new Date(dto.scheduledAt),
-          location: dto.location,
-          venueAddress: dto.venueAddress,
-          weatherLocation: dto.weatherLocation,
-          weatherLatitude: dto.weatherLatitude,
-          weatherLongitude: dto.weatherLongitude,
-          weatherTimezone: dto.weatherTimezone,
+          ...mapVenueToEventFields(selectedVenue, dto),
           notes: dto.notes,
           competitionId,
           friendlyFixtureId: fixtureId,
         })
         .returning();
+
+      if (selectedVenue) {
+        await this.databaseService.database
+          .update(venues)
+          .set({ lastUsedAt: new Date(), updatedAt: new Date() })
+          .where(eq(venues.id, selectedVenue.id))
+          .catch(() => undefined);
+      }
 
       return event;
     } catch (error) {
@@ -496,6 +504,17 @@ export class EventsService {
     const team = await this.requireTeam(userId);
     const existingEvent = await this.requireEvent(team.id, eventId);
     this.ensureEventCanBeUpdated(existingEvent);
+    const selectedVenue = dto.venueId
+      ? await this.requireTeamVenue(team.id, dto.venueId)
+      : null;
+    const eventInput: UpdateEventDto = dto.venueId !== undefined
+      ? {
+          ...dto,
+          ...mapVenueToEventFields(selectedVenue, dto),
+          venueId: selectedVenue?.id ?? null,
+          venueSource: (selectedVenue?.source as 'custom' | 'geoapify' | undefined) ?? dto.venueSource ?? null,
+        }
+      : dto;
     const fixture = existingEvent.friendlyFixtureId
       ? await this.requireFriendlyFixture(existingEvent.friendlyFixtureId)
       : null;
@@ -561,7 +580,7 @@ export class EventsService {
         .update(events)
         .set(
           this.buildEventUpdateValues(
-            dto,
+            eventInput,
             type,
             competitionId,
             friendlyFixtureId,
@@ -575,8 +594,16 @@ export class EventsService {
         fixture,
         friendlyFixtureId,
         currentFriendlyTeamId,
-        dto,
+        eventInput,
       );
+
+      if (selectedVenue) {
+        await this.databaseService.database
+          .update(venues)
+          .set({ lastUsedAt: new Date(), updatedAt: new Date() })
+          .where(eq(venues.id, selectedVenue.id))
+          .catch(() => undefined);
+      }
 
       await this.databaseService.database
         .update(matches)
@@ -619,6 +646,9 @@ export class EventsService {
         ? { scheduledAt: new Date(dto.scheduledAt) }
         : {}),
       ...(dto.location !== undefined ? { location: dto.location } : {}),
+      ...(dto.venueId !== undefined ? { venueId: dto.venueId } : {}),
+      ...(dto.venueSource !== undefined ? { venueSource: dto.venueSource } : {}),
+      ...(dto.venueTags !== undefined ? { venueTags: dto.venueTags } : {}),
       ...(dto.venueAddress !== undefined
         ? { venueAddress: dto.venueAddress }
         : {}),
@@ -1430,6 +1460,16 @@ export class EventsService {
     }
 
     return event;
+  }
+
+  private async requireTeamVenue(teamId: string, venueId: string) {
+    const [venue] = await this.databaseService.database
+      .select()
+      .from(venues)
+      .where(and(eq(venues.id, venueId), eq(venues.teamId, teamId)))
+      .limit(1);
+    if (!venue) throw new BadRequestException('Venue is not available to this team.');
+    return venue;
   }
 
   private isBeforeMatchDay(scheduledAt: Date) {

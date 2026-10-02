@@ -15,6 +15,7 @@ import { fetchEventRsvps, type AthleteRsvp } from "@/services/rsvps";
 import type { PlayerEvent } from "@/services/player";
 import { RsvpWidget } from "@/features/player/RsvpWidget";
 import { EventWeatherCard } from "./EventWeatherCard";
+import { VenueAttribution } from "./VenueAttribution";
 
 interface EventDetailDialogProps {
   event: TeamEvent | PlayerEvent | null;
@@ -167,6 +168,7 @@ export function EventDetailDialog({
             <DetailRow label="Type" value={eventTypeLabel(event.type)} />
             <DetailRow label="Date & time" value={formatEventDateTime(event.scheduledAt, event.weatherTimezone)} />
             <DetailRow label="Location" value={event.location || "Not set"} />
+            <VenueAttribution source={event.venueSource} />
             {event.venueAddress && <DetailRow label="Address" value={event.venueAddress} />}
             <LocationLinks event={event} />
             <DetailRow label="Notes" value={event.notes?.trim() ? event.notes : "None"} />

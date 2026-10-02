@@ -108,9 +108,22 @@ streams:
              events.title,
              events.status,
              events.scheduled_at,
-             events.location
+             events.location,
+             events.venue_id,
+             events.venue_source,
+             events.venue_tags,
+             events.venue_address,
+             events.latitude,
+             events.longitude
       FROM events
       WHERE events.team_id = auth.parameter('team_id')
+
+  team_venues:
+    auto_subscribe: true
+    query: |
+      SELECT venues.*
+      FROM venues
+      WHERE venues.team_id = auth.parameter('team_id')
 
   team_athletes:
     auto_subscribe: true

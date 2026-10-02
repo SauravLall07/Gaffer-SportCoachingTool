@@ -6,10 +6,12 @@ import type {
   CreateEventInput,
   EventLineup,
   EventWeather,
-  LocationSearchResult,
   MatchRecord,
   StartMatchInput,
   TeamEvent,
+  TeamVenue,
+  VenueLookupResponse,
+  VenueTags,
   UpdateEventInput,
 } from "./types";
 
@@ -32,10 +34,48 @@ export function fetchFriendlyOpponentLineup(eventId: string) {
   );
 }
 
-export function searchLocations(query: string) {
-  return apiFetch<LocationSearchResult[]>(
-    `/locations/search?q=${encodeURIComponent(query)}`,
-  );
+export function fetchTeamVenues() {
+  return apiFetch<TeamVenue[]>('/venues');
+}
+
+export function searchVenues(input: {
+  query: string;
+  country?: string;
+  worldwide?: boolean;
+  latitude?: number;
+  longitude?: number;
+}) {
+  const params = new URLSearchParams({ q: input.query });
+  if (input.country) params.set('country', input.country);
+  if (input.worldwide) params.set('worldwide', 'true');
+  if (input.latitude != null && input.longitude != null) {
+    params.set('lat', String(input.latitude));
+    params.set('lng', String(input.longitude));
+  }
+  return apiFetch<VenueLookupResponse>(`/venues/search?${params}`);
+}
+
+export function findNearbyVenues(latitude: number, longitude: number, radius = 5000) {
+  const params = new URLSearchParams({ lat: String(latitude), lng: String(longitude), radius: String(radius) });
+  return apiFetch<VenueLookupResponse>(`/venues/nearby?${params}`);
+}
+
+export function reverseVenueLocation(latitude: number, longitude: number) {
+  const params = new URLSearchParams({ lat: String(latitude), lng: String(longitude) });
+  return apiFetch<{ areaLabel: string | null; unavailableReason: string | null }>(`/venues/reverse?${params}`);
+}
+
+export function saveVenue(input: {
+  name: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  notes?: string | null;
+  tags?: VenueTags | null;
+  source?: 'geoapify' | 'custom';
+  externalId?: string | null;
+}) {
+  return apiFetch<TeamVenue>('/venues', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function createEvent(input: CreateEventInput) {

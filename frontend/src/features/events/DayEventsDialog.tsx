@@ -12,6 +12,7 @@ import { formatEventTime } from "./calendar-utils";
 import { displayEventStatus, eventTypeLabel } from "./event-utils";
 import { getEventTypeStyle } from "./event-style";
 import type { TeamEvent } from "./types";
+import { VenueAttribution } from "./VenueAttribution";
 
 interface DayEventsDialogProps {
   date: Date | null;
@@ -111,6 +112,7 @@ export function DayEventsDialog({
                         {eventTypeLabel(event.type)}
                         {event.location ? ` · ${event.location}` : ""}
                       </span>
+                      <VenueAttribution source={event.venueSource} compact />
                       {cancelled && (
                         <span className="text-destructive font-semibold">Cancelled</span>
                       )}
