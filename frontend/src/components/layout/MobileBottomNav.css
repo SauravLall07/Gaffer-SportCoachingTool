@@ -1,5 +1,5 @@
 .mobile-nav {
-  --dock-gap: 12px;
+  --dock-gap: 0px;
   --dock-height: 78px;
   position: fixed;
   z-index: 45;
@@ -10,7 +10,7 @@
 
 @media (max-width: 1023px) {
   .app-shell--coach .app-shell-main {
-    padding-bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
   }
 
   .app-shell--coach .page-header {
@@ -32,7 +32,7 @@
   pointer-events: auto;
   border: 1px solid color-mix(in srgb, var(--border-default) 72%, transparent);
   background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
-  box-shadow: 0 16px 42px rgb(0 0 0 / 18%),
+  box-shadow: 0 -8px 32px rgb(0 0 0 / 16%),
     inset 0 1px color-mix(in srgb, var(--surface-card) 65%, transparent);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
@@ -48,7 +48,7 @@
   height: var(--dock-height);
   margin-inline: auto;
   margin-bottom: calc(var(--dock-gap) + env(safe-area-inset-bottom, 0px));
-  padding: 5px 4px 4px;
+  padding: 5px 12px 4px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
 }
@@ -164,9 +164,9 @@
   position: absolute;
   z-index: 1;
   right: max(12px, calc((100% - 420px) / 2));
-  bottom: calc(var(--dock-height) + var(--dock-gap) + 22px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--dock-height) + var(--dock-gap) + 10px + env(safe-area-inset-bottom, 0px));
   width: min(354px, calc(100vw - 24px));
-  max-height: calc(100dvh - 124px - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 112px - env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   border-radius: 24px;
   padding: 8px;
