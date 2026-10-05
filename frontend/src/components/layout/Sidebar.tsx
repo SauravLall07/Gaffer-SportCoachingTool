@@ -239,6 +239,17 @@ export function Sidebar({ className, variant }: SidebarProps) {
         </button>
         )}
 
+        {resolvedVariant === "player" && (
+          <nav aria-label="Legal navigation" className="mb-3 border-b border-sidebar-border/70 pb-3 lg:hidden">
+            <a href="/terms-of-service.html?returnTo=%2Fplayer%2Fdashboard" className="flex min-h-11 items-center rounded-lg px-3 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setIsMobileOpen(false)}>
+              Terms &amp; Conditions
+            </a>
+            <a href="/privacy-policy.html?returnTo=%2Fplayer%2Fdashboard" className="flex min-h-11 items-center rounded-lg px-3 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setIsMobileOpen(false)}>
+              Privacy Policy
+            </a>
+          </nav>
+        )}
+
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}

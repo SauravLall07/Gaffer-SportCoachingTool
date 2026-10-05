@@ -4,12 +4,14 @@ import {
   BarChart3,
   CalendarDays,
   ChevronRight,
+  FileText,
   HeartPulse,
   Home,
   LogOut,
   Menu,
   Moon,
   Radio,
+  ScrollText,
   Shield,
   Sun,
   Trophy,
@@ -140,6 +142,14 @@ export function MobileBottomNav({
               <button type="button" className="mobile-more__row" onClick={() => { closeMenu(); onProfile(); }}>
                 <UserRound aria-hidden="true" /><span>Profile</span><ChevronRight className="mobile-more__chevron" aria-hidden="true" />
               </button>
+            </div>
+            <div className="mobile-more__links" role="group" aria-label="Legal navigation">
+              <a href="/terms-of-service.html?returnTo=%2Fdashboard" className="mobile-more__row" onClick={closeMenu}>
+                <ScrollText aria-hidden="true" /><span>Terms &amp; Conditions</span><ChevronRight className="mobile-more__chevron" aria-hidden="true" />
+              </a>
+              <a href="/privacy-policy.html?returnTo=%2Fdashboard" className="mobile-more__row" onClick={closeMenu}>
+                <FileText aria-hidden="true" /><span>Privacy Policy</span><ChevronRight className="mobile-more__chevron" aria-hidden="true" />
+              </a>
             </div>
             <div className="mobile-more__links">
               <button type="button" className="mobile-more__row" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} aria-pressed={theme === "dark"} onClick={onToggleTheme}>
