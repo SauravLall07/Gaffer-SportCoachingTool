@@ -1,0 +1,24 @@
+log:
+  level: info
+
+runner:
+  file: /data/.runner
+  # Browser tests need a full CPU allocation. Keep one job active at a time.
+  capacity: 1
+  timeout: 3h
+  insecure: false
+  labels:
+    - sportcoaching-linux:docker://ghcr.io/catthehacker/ubuntu:act-22.04
+
+cache:
+  enabled: true
+  dir: /data/cache
+  # Both the daemon and job containers join this Docker network. No cache
+  # port needs to be exposed to Windows or the university network.
+  host: sportcoaching-runner
+  port: 8088
+
+container:
+  network: sportcoaching-ci-jobs
+  privileged: false
+  options: --shm-size=1g

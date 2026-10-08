@@ -1,0 +1,24 @@
+name: sportcoaching-ci
+
+services:
+  runner:
+    image: docker.io/gitea/act_runner:latest
+    restart: unless-stopped
+    working_dir: /data
+    entrypoint: ["act_runner"]
+    command: ["--config", "/config.yaml", "daemon"]
+    volumes:
+      - ./config.yaml:/config.yaml:ro
+      - runner-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      jobs:
+        aliases:
+          - sportcoaching-runner
+
+volumes:
+  runner-data:
+
+networks:
+  jobs:
+    name: sportcoaching-ci-jobs
