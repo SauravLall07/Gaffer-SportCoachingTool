@@ -24,6 +24,7 @@
     "benchmark:public-dashboard": "node scripts/benchmark-public-dashboard.mjs",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "npm run test -- --watch",
+    "test:legal": "npm run test -- --config ./test/jest-legal.json --runInBand",
     "test:migrations": "node --test scripts/migration-plan.test.mjs",
     "test:cov": "npm run test -- --coverage",
     "posttest:cov": "node scripts/normalize-coverage.mjs",

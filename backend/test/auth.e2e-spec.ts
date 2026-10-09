@@ -102,7 +102,12 @@ describe('Auth (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/auth/sign-up')
-        .send({ name: 'Ada Lovelace', email, password: PASSWORD })
+        .send({
+          termsAccepted: true,
+          name: 'Ada Lovelace',
+          email,
+          password: PASSWORD,
+        })
         .expect(201);
       const body = response.body as SignUpResponseBody;
 
@@ -121,6 +126,7 @@ describe('Auth (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/auth/sign-up')
         .send({
+          termsAccepted: true,
           name: 'Ada Lovelace',
           email,
           password: PASSWORD,
@@ -140,6 +146,7 @@ describe('Auth (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/auth/sign-up')
         .send({
+          termsAccepted: true,
           name: 'Ada Lovelace',
           email,
           password: PASSWORD,
@@ -155,6 +162,7 @@ describe('Auth (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/auth/sign-up')
         .send({
+          termsAccepted: true,
           name: '',
           email: 'not-an-email',
           password: 'short',
@@ -175,7 +183,7 @@ describe('Auth (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/auth/sign-up')
-        .send(body)
+        .send({ ...body, termsAccepted: true })
         .expect(201);
 
       // With requireEmailVerification Better Auth deliberately mirrors the
@@ -183,7 +191,7 @@ describe('Auth (e2e)', () => {
       // probe which addresses already have accounts.
       const response = await request(app.getHttpServer())
         .post('/auth/sign-up')
-        .send({ ...body, name: 'Someone Else' })
+        .send({ termsAccepted: true, ...body, name: 'Someone Else' })
         .expect(201);
       const responseBody = response.body as SignUpResponseBody;
 
@@ -200,6 +208,7 @@ describe('Auth (e2e)', () => {
       await request(app.getHttpServer())
         .post('/auth/sign-up')
         .send({
+          termsAccepted: true,
           name: 'Ada Lovelace',
           email,
           password: PASSWORD,
@@ -219,7 +228,12 @@ describe('Auth (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/auth/sign-up')
-        .send({ name: 'Grace Hopper', email, password: PASSWORD })
+        .send({
+          termsAccepted: true,
+          name: 'Grace Hopper',
+          email,
+          password: PASSWORD,
+        })
         .expect(201);
 
       const callbackURL = `${FRONTEND_URL}/login?verified=1`;
@@ -236,7 +250,12 @@ describe('Auth (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/auth/sign-up')
-        .send({ name: 'Grace Hopper', email, password: PASSWORD })
+        .send({
+          termsAccepted: true,
+          name: 'Grace Hopper',
+          email,
+          password: PASSWORD,
+        })
         .expect(201);
       await verifyEmail(email, `${FRONTEND_URL}/login?verified=1`);
 
@@ -255,7 +274,12 @@ describe('Auth (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/auth/sign-up')
-        .send({ name: 'Grace Hopper', email, password: PASSWORD })
+        .send({
+          termsAccepted: true,
+          name: 'Grace Hopper',
+          email,
+          password: PASSWORD,
+        })
         .expect(201);
       await verifyEmail(email, `${FRONTEND_URL}/login?verified=1`);
 
@@ -323,7 +347,12 @@ describe('Auth (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/auth/sign-up')
-        .send({ name: 'Grace Hopper', email, password: PASSWORD })
+        .send({
+          termsAccepted: true,
+          name: 'Grace Hopper',
+          email,
+          password: PASSWORD,
+        })
         .expect(201);
 
       const response = await request(app.getHttpServer())
@@ -342,7 +371,12 @@ describe('Auth (e2e)', () => {
       const { email } = newIdentity();
       await request(app.getHttpServer())
         .post('/auth/sign-up')
-        .send({ name: 'Login Csrf Probe', email, password: PASSWORD })
+        .send({
+          termsAccepted: true,
+          name: 'Login Csrf Probe',
+          email,
+          password: PASSWORD,
+        })
         .expect(201);
       await verifyEmail(email, `${FRONTEND_URL}/login?verified=1`);
       return { email, password: PASSWORD };
@@ -465,7 +499,12 @@ describe('Auth (e2e)', () => {
 
       await agent
         .post('/auth/sign-up')
-        .send({ name: 'Katherine Johnson', email, password: PASSWORD })
+        .send({
+          termsAccepted: true,
+          name: 'Katherine Johnson',
+          email,
+          password: PASSWORD,
+        })
         .expect(201);
       await verifyEmail(email, `${FRONTEND_URL}/login?verified=1`);
       await agent
@@ -492,7 +531,12 @@ describe('Auth (e2e)', () => {
 
       await agent
         .post('/auth/sign-up')
-        .send({ name: 'Margaret Hamilton', email, password: PASSWORD })
+        .send({
+          termsAccepted: true,
+          name: 'Margaret Hamilton',
+          email,
+          password: PASSWORD,
+        })
         .expect(201);
       await verifyEmail(email, `${FRONTEND_URL}/login?verified=1`);
       await agent

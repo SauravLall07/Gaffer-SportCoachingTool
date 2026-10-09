@@ -172,6 +172,51 @@ describe('AuthController', () => {
   });
 
   describe('signUp', () => {
+    it.each([undefined, false, 'true', 1, null])(
+      'rejects signup with termsAccepted=%p before calling Better Auth',
+      async (termsAccepted) => {
+        await expect(
+          controller.signUp(
+            {
+              name: 'Ada',
+              email: 'ada@example.com',
+              password: 'Password123!',
+              termsAccepted,
+            },
+            makeReq(),
+            res,
+          ),
+        ).rejects.toThrow(
+          'You must agree to the Terms of Service and Privacy Policy',
+        );
+        expect(signUpEmail).not.toHaveBeenCalled();
+      },
+    );
+
+    it('preserves player claim verification redirects', async () => {
+      signUpEmail.mockResolvedValue(signUpResponse(false));
+      await controller.signUp(
+        {
+          name: 'Ada',
+          email: 'ada@example.com',
+          password: 'Password123!',
+          termsAccepted: true,
+          inviteToken: INVITE_TOKEN,
+          inviteKind: 'claim',
+        },
+        makeReq(),
+        res,
+      );
+      expect(signUpEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({
+            termsAccepted: true,
+            callbackURL: `${FRONTEND_URL}/claim/${INVITE_TOKEN}`,
+          }) as unknown,
+        }),
+      );
+    });
+
     it('enforces the email rate limit policy against the request identity before anything else', async () => {
       signUpEmail.mockResolvedValue(signUpResponse(false));
       const req = makeReq({ 'x-forwarded-for': '198.51.100.9' });
@@ -181,6 +226,7 @@ describe('AuthController', () => {
           name: 'Ada Lovelace',
           email: 'ada@example.com',
           password: 'Password123!',
+          termsAccepted: true,
         },
         req,
         res,
@@ -205,6 +251,7 @@ describe('AuthController', () => {
           name: 'Ada Lovelace',
           email: 'ada@example.com',
           password: 'Password123!',
+          termsAccepted: true,
         },
         req,
         res,
@@ -232,6 +279,7 @@ describe('AuthController', () => {
             name: 'Ada Lovelace',
             email: 'ada@example.com',
             password: 'password123',
+            termsAccepted: true,
           },
           makeReq(),
           res,
@@ -248,6 +296,7 @@ describe('AuthController', () => {
           name: 'Ada Lovelace',
           email: 'ada@example.com',
           password: 'Password123!',
+          termsAccepted: true,
         },
         makeReq(),
         res,
@@ -258,6 +307,7 @@ describe('AuthController', () => {
           name: 'Ada Lovelace',
           email: 'ada@example.com',
           password: 'Password123!',
+          termsAccepted: true,
           callbackURL: `${FRONTEND_URL}/login?verified=1`,
         },
         returnHeaders: true,
@@ -276,6 +326,7 @@ describe('AuthController', () => {
           name: 'Ada Lovelace',
           email: 'ada@example.com',
           password: 'Password123!',
+          termsAccepted: true,
           inviteToken: INVITE_TOKEN,
         },
         makeReq(),
@@ -287,6 +338,7 @@ describe('AuthController', () => {
           name: 'Ada Lovelace',
           email: 'ada@example.com',
           password: 'Password123!',
+          termsAccepted: true,
           callbackURL: `${FRONTEND_URL}/join-team/${INVITE_TOKEN}`,
         },
         returnHeaders: true,
@@ -300,6 +352,7 @@ describe('AuthController', () => {
           name: 'Ada',
           email: 'ada@example.com',
           password: 'Password123!',
+          termsAccepted: true,
           inviteToken: INVITE_TOKEN,
           inviteKind: 'competition',
         },
@@ -322,6 +375,7 @@ describe('AuthController', () => {
             name: 'Ada',
             email: 'ada@example.com',
             password: 'Password123!',
+            termsAccepted: true,
             inviteToken: INVITE_TOKEN,
             inviteKind: 'other',
           },
@@ -339,6 +393,7 @@ describe('AuthController', () => {
             name: 'Ada Lovelace',
             email: 'ada@example.com',
             password: 'Password123!',
+            termsAccepted: true,
             inviteToken: 'not-a-token',
           },
           makeReq(),

@@ -1,6 +1,6 @@
 import { useState, useEffect, useId, type FormEvent } from "react";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import signupBg from "@/assets/SignUp-bg.png";
 import { SportLogo } from "@/components/brand/SportLogo";
@@ -11,6 +11,8 @@ import { PasswordRequirements } from "@/components/ui/password-requirements";
 import { useAuth } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
 import { getNewPasswordValidationError } from "@/lib/password-policy";
+import { storePendingTeamInviteToken } from "@/services/team-invites";
+import { storePendingCompetitionInviteToken } from "@/services/competition-invites";
 
 /**
  * SignUpPage — Dugout registration page.
@@ -22,6 +24,15 @@ import { getNewPasswordValidationError } from "@/lib/password-policy";
  * the /join-team/:token invitation link instead.
  */
 export default function SignUpPage() {
+  const [searchParams] = useSearchParams();
+  const requestedKind = searchParams.get("inviteKind");
+  const requestedToken = searchParams.get("inviteToken") ?? "";
+  const inviteKind = requestedKind === "team" || requestedKind === "competition" || requestedKind === "claim"
+    ? requestedKind : undefined;
+  const inviteToken = inviteKind && /^[A-Za-z0-9_-]{43}$/.test(requestedToken) ? requestedToken : undefined;
+  const destination = inviteToken
+    ? `/${inviteKind === "claim" ? "claim" : `join-${inviteKind}`}/${inviteToken}`
+    : "/dashboard";
   /* ── Form state ──────────────────────────────────────────────────────── */
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -30,7 +41,11 @@ export default function SignUpPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>(
+    searchParams.has("error")
+      ? { form: "Google sign-up could not be completed. Agree to the terms and try again." }
+      : {},
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -99,19 +114,22 @@ export default function SignUpPage() {
 
     setIsSubmitting(true);
 
-    // Every sign-up here creates a plain account with no team — coaches add
-    // a team from the dashboard once signed in, and assistants join through
-    // a coach's /join-team/:token invitation instead of this page.
+    // Invited users return to their original link after registering to finish joining.
     try {
       const { emailVerificationRequired } = await signUp({
         name: fullName,
         email,
         password,
+        termsAccepted,
+        inviteToken,
+        inviteKind,
       });
       if (emailVerificationRequired) {
-        navigate("/verify-email", { replace: true, state: { email } });
+        if (inviteToken && inviteKind === "team") storePendingTeamInviteToken(inviteToken);
+        if (inviteToken && inviteKind === "competition") storePendingCompetitionInviteToken(inviteToken);
+        navigate("/verify-email", { replace: true, state: { email, inviteToken, inviteKind } });
       } else {
-        navigate("/dashboard", { replace: true });
+        navigate(destination, { replace: true });
       }
     } catch (error) {
       if (error instanceof ApiError && /email/i.test(error.message)) {
@@ -139,7 +157,7 @@ export default function SignUpPage() {
 
     setIsGoogleLoading(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(destination, termsAccepted);
     } catch (err) {
       console.error("Google sign-in failed:", err);
       setIsGoogleLoading(false);
@@ -398,7 +416,7 @@ export default function SignUpPage() {
           <p>
             Already have an account?{" "}
             <Link
-              to="/login"
+              to={inviteToken ? `${destination}?mode=sign-in` : "/login"}
               className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               Sign in

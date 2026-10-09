@@ -126,6 +126,7 @@ for (const targetTag of [
   '0060_match_play_state',
   '0061_roster_player_label_comparison',
   '0063_competition_schedule_timezone',
+  '0064_legal_acceptance',
 ]) {
   test(`${targetTag} supports prepared queries and records successful application once`, async () => {
     const pg = new PGlite();

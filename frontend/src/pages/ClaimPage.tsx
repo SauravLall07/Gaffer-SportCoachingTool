@@ -1,6 +1,6 @@
 import { useState, useEffect, useId, type FormEvent } from "react";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams, Navigate } from "react-router-dom";
 
 import signupBg from "@/assets/SignUp-bg.png";
 import { SportLogo } from "@/components/brand/SportLogo";
@@ -8,11 +8,9 @@ import { Button } from "@/components/ui/button";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { useAuth } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
-import { getNewPasswordValidationError } from "@/lib/password-policy";
 import {
   acceptClaim,
   previewClaim,
-  storePendingClaimToken,
   type ClaimPreview,
 } from "@/services/claims";
 
@@ -28,7 +26,7 @@ const CONSENT_LABEL =
  * ClaimPage — public route at /claim/:token.
  *
  * A player opens this link from a coach-generated invite.  The page previews
- * the athlete/team, then offers inline sign-up or sign-in.  On success the
+ * the athlete/team, then routes registration through SignUpPage or offers sign-in. On success the
  * claim is accepted and the browser navigates to the player dashboard.
  *
  * Styling mirrors SignUpPage: forced dark theme, SportLogo + GAFFER header,
@@ -36,6 +34,7 @@ const CONSENT_LABEL =
  */
 export default function ClaimPage() {
   const { token = "" } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
 
   /* ── Preview state ─────────────────────────────────────────────────── */
   const [preview, setPreview] = useState<ClaimPreview | null>(null);
@@ -43,29 +42,23 @@ export default function ClaimPage() {
   const [previewError, setPreviewError] = useState(false);
 
   /* ── Auth state ────────────────────────────────────────────────────── */
-  const { status: authStatus, signUp, signIn, refreshSession } = useAuth();
+  const { status: authStatus, signIn, refreshSession } = useAuth();
   const isSignedIn = authStatus === "authenticated";
 
   /* ── Form state ────────────────────────────────────────────────────── */
-  const [viewMode, setViewMode] = useState<ViewMode>("sign-up");
-  const [fullName, setFullName] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>(searchParams.get("mode") === "sign-in" ? "sign-in" : "sign-up");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const baseId = useId();
-  const fullNameErrorId = `${baseId}-fullName-error`;
   const emailErrorId = `${baseId}-email-error`;
   const passwordErrorId = `${baseId}-password-error`;
-  const confirmPasswordErrorId = `${baseId}-confirmPassword-error`;
   const consentErrorId = `${baseId}-consent-error`;
-  const navigate = useNavigate();
 
   /* ── Force dark theme (mirrors SignUpPage) ─────────────────────────── */
   useEffect(() => {
@@ -102,31 +95,6 @@ export default function ClaimPage() {
   }, [token]);
 
   /* ── Validation (sign-up only) ─────────────────────────────────────── */
-  const validateSignUp = (): boolean => {
-    const next: Record<string, string> = {};
-    if (!fullName.trim()) next.fullName = "Full name is required.";
-    if (!email.trim()) {
-      next.email = "Email address is required.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      next.email = "Please enter a valid email address.";
-    }
-    const passwordError = getNewPasswordValidationError(password);
-    if (passwordError) {
-      next.password = passwordError;
-    }
-    if (!confirmPassword) {
-      next.confirmPassword = "Please confirm your password.";
-    } else if (confirmPassword !== password) {
-      next.confirmPassword = "Passwords do not match.";
-    }
-    if (!consentAccepted) {
-      next.consent = "You must confirm consent to continue.";
-    }
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  /* ── Validation (sign-in) ──────────────────────────────────────────── */
   const validateSignIn = (): boolean => {
     const next: Record<string, string> = {};
     if (!email.trim()) {
@@ -157,38 +125,6 @@ export default function ClaimPage() {
   };
 
   /* ── Handlers ──────────────────────────────────────────────────────── */
-  const handleSignUp = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!validateSignUp()) return;
-    setIsSubmitting(true);
-    setFormError(null);
-    try {
-      const { emailVerificationRequired } = await signUp({
-        name: fullName,
-        email,
-        password,
-      });
-      if (emailVerificationRequired) {
-        storePendingClaimToken(token);
-        navigate("/verify-email", { replace: true, state: { email } });
-        return;
-      }
-      await doAccept();
-    } catch (err) {
-      if (err instanceof ApiError && /email/i.test(err.message)) {
-        setErrors((prev) => ({ ...prev, email: err.message }));
-      } else {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : "Something went wrong creating your account. Please try again.";
-        setFormError(message);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleSignIn = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validateSignIn()) return;
@@ -222,7 +158,7 @@ export default function ClaimPage() {
   };
 
   /* ── Render: loading ───────────────────────────────────────────────── */
-  if (previewLoading) {
+  if (previewLoading || authStatus === "loading") {
     return (
       <Shell>
         <div className="flex flex-col items-center gap-4 py-12 text-muted-foreground">
@@ -269,53 +205,28 @@ export default function ClaimPage() {
   }
 
   /* ── Render: sign-up / sign-in ─────────────────────────────────────── */
+  if (!isSignedIn && viewMode === "sign-up") {
+    return <Navigate to={`/signup?inviteKind=claim&inviteToken=${encodeURIComponent(token)}`} replace />;
+  }
+
   return (
     <Shell>
       <PreviewHeader athleteLabel={athleteLabel} teamLabel={teamLabel} />
-      {viewMode === "sign-up" ? (
-        <ClaimSignUpForm
-          baseId={baseId}
-          fullName={fullName}
-          onFullNameChange={setFullName}
-          email={email}
-          onEmailChange={setEmail}
-          password={password}
-          onPasswordChange={setPassword}
-          confirmPassword={confirmPassword}
-          onConfirmPasswordChange={setConfirmPassword}
-          showPassword={showPassword}
-          onTogglePassword={() => setShowPassword((current) => !current)}
-          showConfirmPassword={showConfirmPassword}
-          onToggleConfirmPassword={() => setShowConfirmPassword((current) => !current)}
-          errors={errors}
-          fullNameErrorId={fullNameErrorId}
-          emailErrorId={emailErrorId}
-          passwordErrorId={passwordErrorId}
-          confirmPasswordErrorId={confirmPasswordErrorId}
-          consentAccepted={consentAccepted}
-          onConsentChange={setConsentAccepted}
-          consentErrorId={consentErrorId}
-          formError={formError}
-          isSubmitting={isSubmitting}
-          onSubmit={handleSignUp}
-        />
-      ) : (
-        <ClaimSignInForm
-          baseId={baseId}
-          email={email}
-          onEmailChange={setEmail}
-          password={password}
-          onPasswordChange={setPassword}
-          showPassword={showPassword}
-          onTogglePassword={() => setShowPassword((current) => !current)}
-          errors={errors}
-          emailErrorId={emailErrorId}
-          passwordErrorId={passwordErrorId}
-          formError={formError}
-          isSubmitting={isSubmitting}
-          onSubmit={handleSignIn}
-        />
-      )}
+      <ClaimSignInForm
+        baseId={baseId}
+        email={email}
+        onEmailChange={setEmail}
+        password={password}
+        onPasswordChange={setPassword}
+        showPassword={showPassword}
+        onTogglePassword={() => setShowPassword((current) => !current)}
+        errors={errors}
+        emailErrorId={emailErrorId}
+        passwordErrorId={passwordErrorId}
+        formError={formError}
+        isSubmitting={isSubmitting}
+        onSubmit={handleSignIn}
+      />
       <ClaimModeSwitch
         viewMode={viewMode}
         onChange={(mode) => {
@@ -477,41 +388,6 @@ function ClaimConfirmForm({
       {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
       <Button type="submit" size="lg" disabled={isSubmitting} className="w-full font-semibold tracking-wide">
         {isSubmitting ? "CLAIMING…" : "CLAIM MY PROFILE"}
-      </Button>
-    </form>
-  );
-}
-
-function ClaimSignUpForm({
-  baseId, fullName, onFullNameChange, email, onEmailChange, password, onPasswordChange,
-  confirmPassword, onConfirmPasswordChange, showPassword, onTogglePassword,
-  showConfirmPassword, onToggleConfirmPassword, errors, fullNameErrorId, emailErrorId,
-  passwordErrorId, confirmPasswordErrorId, consentAccepted, onConsentChange,
-  consentErrorId, formError, isSubmitting, onSubmit,
-}: {
-  baseId: string;
-  fullName: string; onFullNameChange: (value: string) => void;
-  email: string; onEmailChange: (value: string) => void;
-  password: string; onPasswordChange: (value: string) => void;
-  confirmPassword: string; onConfirmPasswordChange: (value: string) => void;
-  showPassword: boolean; onTogglePassword: () => void;
-  showConfirmPassword: boolean; onToggleConfirmPassword: () => void;
-  errors: Record<string, string>;
-  fullNameErrorId: string; emailErrorId: string; passwordErrorId: string; confirmPasswordErrorId: string;
-  consentAccepted: boolean; onConsentChange: (value: boolean) => void; consentErrorId: string;
-  formError: string | null; isSubmitting: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <form onSubmit={(event) => void onSubmit(event)} noValidate className="flex flex-col gap-5">
-      <ClaimInput id={`${baseId}-fullName`} label="Full name" type="text" value={fullName} onChange={onFullNameChange} autoComplete="name" error={errors.fullName} errorId={fullNameErrorId} />
-      <ClaimInput id={`${baseId}-email`} label="Email address" type="email" value={email} onChange={onEmailChange} autoComplete="email" error={errors.email} errorId={emailErrorId} />
-      <ClaimInput id={`${baseId}-password`} label="Password" type="password" value={password} onChange={onPasswordChange} autoComplete="new-password" error={errors.password} errorId={passwordErrorId} visible={showPassword} onToggleVisibility={onTogglePassword} hideLabel="Hide password" showLabel="Show password" />
-      <ClaimInput id={`${baseId}-confirmPassword`} label="Confirm password" type="password" value={confirmPassword} onChange={onConfirmPasswordChange} autoComplete="new-password" error={errors.confirmPassword} errorId={confirmPasswordErrorId} visible={showConfirmPassword} onToggleVisibility={onToggleConfirmPassword} hideLabel="Hide confirm password" showLabel="Show confirm password" />
-      <ConsentCheckbox baseId={baseId} checked={consentAccepted} onChange={onConsentChange} error={errors.consent} errorId={consentErrorId} />
-      {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
-      <Button type="submit" size="lg" disabled={isSubmitting} className="w-full font-semibold tracking-wide">
-        {isSubmitting ? "JOINING…" : "CLAIM MY PROFILE"}
       </Button>
     </form>
   );

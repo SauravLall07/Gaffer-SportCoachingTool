@@ -49,12 +49,13 @@ export interface SignUpInput {
   name: string;
   email: string;
   password: string;
+  termsAccepted: boolean;
   /**
    * Team-invite token when the sign-up originates from /join-team/:token —
    * makes the verification email land the user back on the invite.
    */
   inviteToken?: string;
-  inviteKind?: "team" | "competition";
+  inviteKind?: "team" | "competition" | "claim";
 }
 
 export interface SignInInput {
@@ -83,13 +84,13 @@ interface AuthContextValue {
   retrySession: () => Promise<void>;
   signUp: (input: SignUpInput) => Promise<SignUpResult>;
   signIn: (input: SignInInput) => Promise<void>;
-  signInWithGoogle: (callbackPath?: string) => Promise<void>;
+  signInWithGoogle: (callbackPath?: string, termsAccepted?: boolean) => Promise<void>;
   signOut: (options?: { pendingData?: "retain" | "discard" }) => Promise<void>;
   refreshSession: () => Promise<SessionPayload | null>;
   resendVerificationEmail: (
     email: string,
     inviteToken?: string,
-    inviteKind?: "team" | "competition",
+    inviteKind?: "team" | "competition" | "claim",
   ) => Promise<void>;
 }
 

@@ -51,10 +51,10 @@ const VERIFIED_REDIRECT_URL = `${FRONTEND_URL}/login?verified=1`;
  */
 function verifiedRedirectUrl(
   inviteToken?: string,
-  inviteKind: 'team' | 'competition' = 'team',
+  inviteKind: 'team' | 'competition' | 'claim' = 'team',
 ): string {
   return inviteToken
-    ? `${FRONTEND_URL}/join-${inviteKind}/${inviteToken}`
+    ? `${FRONTEND_URL}/${inviteKind === 'claim' ? 'claim' : `join-${inviteKind}`}/${inviteToken}`
     : VERIFIED_REDIRECT_URL;
 }
 
@@ -203,6 +203,7 @@ export class AuthController {
           name: dto.name,
           email: dto.email,
           password: dto.password,
+          ...{ termsAccepted: dto.termsAccepted },
           callbackURL: verifiedRedirectUrl(dto.inviteToken, dto.inviteKind),
         },
         returnHeaders: true,

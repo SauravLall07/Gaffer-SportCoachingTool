@@ -1,6 +1,10 @@
 import { betterAuth } from 'better-auth';
 import { and, eq } from 'drizzle-orm';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import {
+  legalAcceptanceAdapter,
+  legalAcceptanceBefore,
+  legalAcceptanceUserHooks,
+} from './legal-acceptance';
 import { createDatabaseClient } from '../database/drizzle';
 import * as schema from '../database/schema';
 import {
@@ -153,11 +157,9 @@ export const auth = betterAuth({
     'https://gaffer-virid.vercel.app',
     'http://localhost:5173',
   ].filter(Boolean),
-  database: drizzleAdapter(db, {
-    provider: 'pg',
-    schema,
-    transaction: false,
-  }),
+  database: legalAcceptanceAdapter(db),
+  hooks: { before: legalAcceptanceBefore },
+  databaseHooks: { user: legalAcceptanceUserHooks },
   user: {
     validateUserInfo: async ({ user, source }) =>
       validateGoogleIdentity(user, source),

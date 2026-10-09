@@ -33,8 +33,12 @@ export const signUpSchema = z.object({
     .email('Enter a valid email address.')
     .max(255, 'Email must be 255 characters or fewer.'),
   password: newPasswordSchema,
+  termsAccepted: z.literal(true, {
+    error:
+      'You must agree to the Terms of Service and Privacy Policy to register.',
+  }),
   inviteToken: inviteTokenField,
-  inviteKind: z.enum(['team', 'competition']).optional(),
+  inviteKind: z.enum(['team', 'competition', 'claim']).optional(),
 });
 export type SignUpDto = z.infer<typeof signUpSchema>;
 
@@ -104,7 +108,7 @@ export const resendVerificationEmailSchema = z.object({
     .email('Enter a valid email address.')
     .max(255, 'Email must be 255 characters or fewer.'),
   inviteToken: inviteTokenField,
-  inviteKind: z.enum(['team', 'competition']).optional(),
+  inviteKind: z.enum(['team', 'competition', 'claim']).optional(),
 });
 export type ResendVerificationEmailDto = z.infer<
   typeof resendVerificationEmailSchema

@@ -216,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
-  const signInWithGoogle = useCallback(async (callbackPath = "/dashboard") => {
+  const signInWithGoogle = useCallback(async (callbackPath = "/dashboard", termsAccepted = false) => {
     // Google sign-in has no rememberMe option in Better Auth's social flow;
     // do not retain an offline session cache for it implicitly.
     localStorage.removeItem(rememberedSessionKey);
@@ -230,11 +230,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? callbackPath
         : "/dashboard";
     sessionStorage.setItem("gaffer-google-callback-path", safeCallbackPath);
-    await authClient.signIn.social({
+    const errorCallback = new URL(termsAccepted ? "/signup" : "/login", window.location.origin);
+    if (termsAccepted) errorCallback.search = window.location.search;
+    errorCallback.searchParams.set("error", "google");
+    const { error } = await authClient.signIn.social({
       provider: "google",
       callbackURL: `${window.location.origin}/oauth/callback`,
-      errorCallbackURL: `${window.location.origin}/login?error=google`,
+      errorCallbackURL: errorCallback.toString(),
+      additionalData: { termsAccepted },
     });
+    if (error) throw new ApiError(error.message ?? "Couldn't start Google sign-in.", error.status ?? 400);
   }, []);
 
   const signOut = useCallback(async (options?: {
@@ -333,7 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // `inviteToken`, when the resend happens mid-team-invite flow, makes the
   // fresh verification email route back to /join-team/:token as well.
   const resendVerificationEmail = useCallback(
-    async (email: string, inviteToken?: string, inviteKind?: "team" | "competition") => {
+    async (email: string, inviteToken?: string, inviteKind?: "team" | "competition" | "claim") => {
       await apiFetch("/auth/send-verification-email", {
         method: "POST",
         body: JSON.stringify({ email, inviteToken, inviteKind }),

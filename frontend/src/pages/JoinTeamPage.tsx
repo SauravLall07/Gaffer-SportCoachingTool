@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams, Navigate } from "react-router-dom";
 
 import signupBg from "@/assets/SignUp-bg.png";
 import { SportLogo } from "@/components/brand/SportLogo";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { useAuth } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
-import { getNewPasswordValidationError } from "@/lib/password-policy";
 import {
   acceptTeamInvite,
   classifyInviteAcceptError,
@@ -51,7 +50,7 @@ function persistTeamInviteFailure(
  * JoinTeamPage — public route at /join-team/:token.
  *
  * An assistant opens this link from a coach-generated invite.  The page
- * previews the team name, then offers inline sign-up or sign-in.  On
+ * previews the team name, then routes registration through SignUpPage or offers sign-in. On
  * success the invite is accepted and the browser navigates to the dashboard.
  *
  * Mirrors ClaimPage architecture: force dark theme, Shell wrapper,
@@ -60,6 +59,7 @@ function persistTeamInviteFailure(
 export default function JoinTeamPage() {
   const { token = "" } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   /* ── Preview state ─────────────────────────────────────────────────── */
   const [preview, setPreview] = useState<TeamInvitePreview | null>(null);
@@ -67,18 +67,15 @@ export default function JoinTeamPage() {
   const [previewError, setPreviewError] = useState(false);
 
   /* ── Auth state ────────────────────────────────────────────────────── */
-  const { status: authStatus, user, signUp, signIn, signOut, refreshSession } =
+  const { status: authStatus, user, signIn, signOut, refreshSession } =
     useAuth();
   const isSignedIn = authStatus === "authenticated";
 
   /* ── Form state ────────────────────────────────────────────────────── */
-  const [viewMode, setViewMode] = useState<ViewMode>("sign-up");
-  const [fullName, setFullName] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>(searchParams.get("mode") === "sign-in" ? "sign-in" : "sign-up");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -121,27 +118,6 @@ export default function JoinTeamPage() {
   }, [token]);
 
   /* ── Validation ────────────────────────────────────────────────────── */
-  const validateSignUp = (): boolean => {
-    const next: Record<string, string> = {};
-    if (!fullName.trim()) next.fullName = "Full name is required.";
-    if (!email.trim()) {
-      next.email = "Email address is required.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      next.email = "Please enter a valid email address.";
-    }
-    const passwordError = getNewPasswordValidationError(password);
-    if (passwordError) {
-      next.password = passwordError;
-    }
-    if (!confirmPassword) {
-      next.confirmPassword = "Please confirm your password.";
-    } else if (confirmPassword !== password) {
-      next.confirmPassword = "Passwords do not match.";
-    }
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
   const validateSignIn = (): boolean => {
     const next: Record<string, string> = {};
     if (!email.trim()) {
@@ -169,44 +145,6 @@ export default function JoinTeamPage() {
   };
 
   /* ── Handlers ──────────────────────────────────────────────────────── */
-  const handleSignUp = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!validateSignUp()) return;
-    setIsSubmitting(true);
-    setFormError(null);
-    try {
-      const { emailVerificationRequired } = await signUp({
-        name: fullName,
-        email,
-        password,
-        // Riding the invite token along makes the verification email land
-        // the user back on this page once they click the link.
-        inviteToken: token,
-      });
-      if (emailVerificationRequired) {
-        storePendingTeamInviteToken(token);
-        navigate("/verify-email", {
-          replace: true,
-          state: { email, inviteToken: token },
-        });
-        return;
-      }
-      await doAccept();
-    } catch (err) {
-      if (err instanceof ApiError && /email/i.test(err.message)) {
-        setErrors((prev) => ({ ...prev, email: err.message }));
-      } else {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : "Something went wrong creating your account. Please try again.";
-        setFormError(message);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleSignIn = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validateSignIn()) return;
@@ -259,7 +197,7 @@ export default function JoinTeamPage() {
   };
 
   /* ── Render: loading ──────────────────────────────────────────────── */
-  if (previewLoading) {
+  if (previewLoading || authStatus === "loading") {
     return (
       <Shell>
         <div className="flex flex-col items-center gap-4 py-12 text-muted-foreground">
@@ -341,6 +279,10 @@ export default function JoinTeamPage() {
   }
 
   /* ── Render: auth forms ────────────────────────────────────────────── */
+  if (!isSignedIn && viewMode === "sign-up") {
+    return <Navigate to={`/signup?inviteKind=team&inviteToken=${encodeURIComponent(token)}`} replace />;
+  }
+
   return (
     <Shell>
       <div className="flex flex-col gap-5">
@@ -399,84 +341,6 @@ export default function JoinTeamPage() {
         )}
 
         {/* ── Sign-up form ────────────────────────────────────────────── */}
-        {viewMode === "sign-up" && (
-          <form onSubmit={(e) => void handleSignUp(e)} className="flex flex-col gap-4">
-            <div>
-              <FloatingLabelInput
-                id="jt-fullName"
-                label="Full name"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                autoComplete="name"
-              />
-              {errors.fullName && (
-                <p className="mt-1 text-xs text-destructive">{errors.fullName}</p>
-              )}
-            </div>
-            <div>
-              <FloatingLabelInput
-                id="jt-email"
-                label="Email address"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
-              {errors.email && (
-                <p className="mt-1 text-xs text-destructive">{errors.email}</p>
-              )}
-            </div>
-            <div className="relative">
-              <FloatingLabelInput
-                id="jt-password"
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/3 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-              {errors.password && (
-                <p className="mt-1 text-xs text-destructive">{errors.password}</p>
-              )}
-            </div>
-            <div className="relative">
-              <FloatingLabelInput
-                id="jt-confirmPassword"
-                label="Confirm password"
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/3 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-              >
-                {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-              {errors.confirmPassword && (
-                <p className="mt-1 text-xs text-destructive">{errors.confirmPassword}</p>
-              )}
-            </div>
-
-            <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting ? "Creating account…" : "Create Account & Join"}
-            </Button>
-          </form>
-        )}
-
-        {/* ── Sign-in form ────────────────────────────────────────────── */}
         {viewMode === "sign-in" && (
           <form onSubmit={(e) => void handleSignIn(e)} className="flex flex-col gap-4">
             <div>

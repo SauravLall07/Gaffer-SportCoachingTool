@@ -61,6 +61,11 @@ export default function LoginPage() {
   const verifiedParam = searchParams.get("verified");
   const resetParam = searchParams.get("reset");
   const emailChangedParam = searchParams.get("emailChanged");
+  const needsLegalAcceptance = searchParams.getAll("error").includes("LEGAL_ACCEPTANCE_REQUIRED");
+
+  useEffect(() => {
+    if (needsLegalAcceptance) navigate("/signup?error=google", { replace: true });
+  }, [needsLegalAcceptance, navigate]);
 
   useEffect(() => {
     if (errorParam === "google") {

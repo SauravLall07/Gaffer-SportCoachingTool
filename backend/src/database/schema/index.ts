@@ -11,6 +11,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -41,6 +42,31 @@ export const user = pgTable('user', {
   dateOfBirth: date('date_of_birth', { mode: 'string' }),
   ...timestamps,
 });
+
+export const legalAcceptance = pgTable(
+  'legal_acceptance',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    termsVersion: text('terms_version').notNull(),
+    privacyVersion: text('privacy_version').notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    method: text('method').$type<'email_signup' | 'google_signup'>().notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'legal_acceptance_pkey',
+      columns: [table.userId, table.termsVersion, table.privacyVersion],
+    }),
+    check(
+      'legal_acceptance_method_check',
+      sql`${table.method} IN ('email_signup', 'google_signup')`,
+    ),
+  ],
+);
 
 export const session = pgTable(
   'session',

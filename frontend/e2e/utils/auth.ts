@@ -107,7 +107,7 @@ export async function registerVerifiedUser(
 ): Promise<void> {
   await expectOk(
     await request.post(`${BACKEND_URL}/auth/sign-up`, {
-      data: { name, email, password },
+      data: { name, email, password, termsAccepted: true },
     }),
     'sign-up',
   );

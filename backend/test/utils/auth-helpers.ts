@@ -49,7 +49,12 @@ export async function registerCoach(
 
   const signUp = await agent
     .post('/auth/sign-up')
-    .send({ name, email: identity.email, password: PASSWORD })
+    .send({
+      termsAccepted: true,
+      name,
+      email: identity.email,
+      password: PASSWORD,
+    })
     .expect(201);
   const { user } = signUp.body as SignUpResponseBody;
 
@@ -105,7 +110,12 @@ export async function registerAssistant(
   const agent = request.agent(server);
   const signUp = await agent
     .post('/auth/sign-up')
-    .send({ name, email: identity.email, password: PASSWORD })
+    .send({
+      termsAccepted: true,
+      name,
+      email: identity.email,
+      password: PASSWORD,
+    })
     .expect(201);
   const { user } = signUp.body as SignUpResponseBody;
 
