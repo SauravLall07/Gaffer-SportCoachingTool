@@ -4,6 +4,12 @@ test('production PWA installs its worker and reopens its shell offline', async (
   context,
   page,
 }) => {
+  const cspErrors: string[] = [];
+  page.on('console', (message) => {
+    if (/content security policy|violates.*directive/i.test(message.text())) {
+      cspErrors.push(message.text());
+    }
+  });
   await page.route('**/auth/session', (route) =>
     route.fulfill({
       status: 200,
@@ -12,7 +18,9 @@ test('production PWA installs its worker and reopens its shell offline', async (
     }),
   );
 
-  await page.goto('/');
+  const response = await page.goto('/');
+  expect(response?.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
+  expect(response?.headers()['x-content-type-options']).toBe('nosniff');
   await expect(page).toHaveTitle(/Gaffer/);
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -51,4 +59,5 @@ test('production PWA installs its worker and reopens its shell offline', async (
     }
   });
   expect(authenticatedApiUnavailable).toBe(true);
+  expect(cspErrors).toEqual([]);
 });

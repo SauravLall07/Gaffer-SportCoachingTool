@@ -12,6 +12,7 @@ import { PublicApiModule } from './public-api/public-api.module';
 import { PublicDashboardService } from './public-api/public-dashboard.service';
 import { buildCorsOptionsDelegate } from './cors-config';
 import { configureSwagger } from './swagger-config';
+import { configureSecurityHeaders } from './security-headers';
 import { AuthGuard } from './auth/auth.guard';
 
 type SchemaObject = ApiResponseSchemaHost['schema'];
@@ -64,6 +65,7 @@ describe('Public Swagger contract', () => {
       })
       .compile();
     app = module.createNestApplication();
+    configureSecurityHeaders(app);
     configureSwagger(app);
     app.enableCors(buildCorsOptionsDelegate(new Set()));
     await app.init();
@@ -91,6 +93,10 @@ describe('Public Swagger contract', () => {
         await request(server)
           .get(path)
           .expect(200)
+          .expect('X-Content-Type-Options', 'nosniff')
+          .expect('X-Frame-Options', 'DENY')
+          .expect('Referrer-Policy', 'strict-origin-when-cross-origin')
+          .expect('Content-Security-Policy', /frame-ancestors 'none'/)
           .expect(/Swagger UI/);
       }
       await request(server)

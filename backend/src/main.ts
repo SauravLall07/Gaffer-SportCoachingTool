@@ -3,9 +3,11 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 import { buildCorsOptionsDelegate } from './cors-config';
 import { configureSwagger } from './swagger-config';
+import { configureSecurityHeaders } from './security-headers';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  configureSecurityHeaders(app);
   app.useWebSocketAdapter(new IoAdapter(app));
 
   configureSwagger(app);

@@ -3,10 +3,22 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'url'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'node:fs'
+
+// Exercise the deployed policy when testing the production build locally.
+// Development stays unrestricted for Vite's HMR and local API overrides.
+const deploymentConfig = JSON.parse(
+  readFileSync(new URL('./vercel.json', import.meta.url), 'utf8'),
+) as { headers: Array<{ headers: Array<{ key: string; value: string }> }> }
 
 // https://vite.dev/config/
 export default defineConfig({
   envDir: '..',
+  preview: {
+    headers: Object.fromEntries(
+      deploymentConfig.headers[0].headers.map(({ key, value }) => [key, value]),
+    ),
+  },
   plugins: [
     react(),
     tailwindcss(),

@@ -13,6 +13,7 @@ label.
 | Build | `npm run build` | Type-checks and builds both applications. |
 | Backend unit and shared domain | `npm test` | Runs shared match-domain checks and isolated Jest service/controller tests. |
 | Frontend model | `npm --prefix frontend test` | Runs frontend models, PDF export, caching, and refresh tests in isolated processes. |
+| Browser security | `npm run test:e2e:security` | Builds the frontend and verifies its enforcing production CSP, OAuth initiation, resource compatibility, CSV/PDF downloads and offline PWA shell. See [SEC-009 validation limits](browser-security-headers.md). |
 | Migration regression | `npm run test:migrations` | Checks migration history and replays recent SQL against disposable PGlite databases. |
 | API/integration | `npm run test:integration` | Runs Supertest flows against a real test database, including authentication, authorization, team isolation, athletes, events, dashboards, and statistics. |
 | Browser/UI | `npm run test:e2e:ui` | Runs the main user journeys in Chromium against the real frontend, backend, and test database. |
